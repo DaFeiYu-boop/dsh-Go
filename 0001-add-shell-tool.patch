@@ -1,0 +1,112 @@
+diff --git a/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneCore.kt b/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneCore.kt
+index 889cbd3..d13b209 100644
+--- a/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneCore.kt
++++ b/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneCore.kt
+@@ -1,6 +1,7 @@
+ package io.github.ccch1mneyyy.dsh_app.phone
+ 
+ import java.time.ZoneId
++import java.util.concurrent.TimeUnit
+ 
+ enum class A11yState { CONNECTED, ENABLED_NOT_CONNECTED, DISABLED }
+ 
+@@ -159,6 +160,7 @@ class PhoneCore(
+             PhoneToolCatalog.TAP, PhoneToolCatalog.TYPE, PhoneToolCatalog.SCROLL, PhoneToolCatalog.TAP_XY -> act(name, a, scope)
+             PhoneToolCatalog.KEY -> key(a)
+             PhoneToolCatalog.HANDOFF -> handoff(a, scope)
++            PhoneToolCatalog.SHELL -> shell(a)
+             // l10n:keep agent tool result
+             else -> Out("没有这个手机工具：$name", error = true)
+         }
+@@ -593,6 +595,42 @@ class PhoneCore(
+             decision = if (res.ok) "ok" else "failed")
+     }
+ 
++    private fun shell(a: Args): Out {
++        // l10n:keep agent tool result
++        val command = a.str("command") ?: return Out("shell 需要 command：要执行的命令。", error = true)
++        val timeoutMs = (a.int("timeoutMs") ?: 20_000).toLong().coerceIn(1_000L, 120_000L)
++        val process = try {
++            ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
++        } catch (e: Exception) {
++            // l10n:keep agent tool result
++            return Out(
++                "起不了 su（${e.message ?: e.javaClass.simpleName}）。这台手机要么没 root，" +
++                    // l10n:keep agent tool result
++                    "要么 root 管理器没把权限给 DSH Go。",
++                error = true,
++                summary = "shell",
++                decision = "refused:no-su",
++            )
++        }
++        val finished = try {
++            process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
++        } catch (e: InterruptedException) {
++            process.destroyForcibly()
++            Thread.currentThread().interrupt()
++            // l10n:keep agent tool result
++            return Out("命令被中断了。", error = true, summary = "shell", decision = "timeout")
++        }
++        if (!finished) {
++            process.destroyForcibly()
++            // l10n:keep agent tool result
++            return Out("命令超过 ${timeoutMs}ms 没结束，已终止。", error = true, summary = "shell", decision = "timeout")
++        }
++        val output = process.inputStream.bufferedReader().use { it.readText() }.take(MAX_SHELL_CHARS)
++        val code = process.exitValue()
++        val body = if (output.isBlank()) "(没有输出)" else output.trimEnd()
++        return Out("$ $command\n[exit $code]\n$body", error = code != 0, summary = "shell", decision = if (code == 0) "ok" else "failed")
++    }
++
+     private fun handoff(a: Args, scope: SerialWorker.Scope): Out {
+         val owner = tasks.activeOwner() ?: return stoppedOut("handoff")
+         // l10n:keep agent tool result
+@@ -646,6 +684,7 @@ class PhoneCore(
+         const val SETTLE_AFTER_LAUNCH_MS = 1200L
+         const val MAX_APPS = 150
+         const val MAX_COLLECT_CHARS = 16_000
++        const val MAX_SHELL_CHARS = 8_000
+ 
+         /** The call's own time, not counting waits for the person. */
+         fun budgetMs(tool: String): Long = when (tool) {
+@@ -655,6 +694,7 @@ class PhoneCore(
+             PhoneToolCatalog.SCREEN -> 12_000L
+             PhoneToolCatalog.COLLECT -> 120_000L
+             PhoneToolCatalog.HANDOFF -> 30_000L
++            PhoneToolCatalog.SHELL -> 125_000L
+             else -> 30_000L
+         }
+     }
+diff --git a/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneToolCatalog.kt b/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneToolCatalog.kt
+index 0879969..0248841 100644
+--- a/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneToolCatalog.kt
++++ b/app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneToolCatalog.kt
+@@ -22,6 +22,7 @@ object PhoneToolCatalog {
+     const val KEY = "key"
+     const val TAP_XY = "tap_xy"
+     const val HANDOFF = "handoff"
++    const val SHELL = "shell"
+ 
+     class Tool(val name: String, val description: String, val properties: Map<String, Any?>, val required: List<String>) {
+         fun toJson(): Map<String, Any?> = linkedMapOf(
+@@ -260,6 +261,20 @@ object PhoneToolCatalog {
+             linkedMapOf("reason" to str("要用户做什么，一句话")),
+             listOf("reason"),
+         ),
++        Tool(
++            SHELL,
++            // l10n:keep agent tool catalog
++            "在手机上以 root 执行一条 shell 命令（经 su），返回退出码和输出。会绕开手机操控的安全检查：" +
++                // l10n:keep agent tool catalog
++                "只在用户明确要求、或别无他法时用。删除、改系统、动钱的命令先问用户。",
++            linkedMapOf(
++                // l10n:keep agent tool catalog
++                "command" to str("要执行的命令，按 sh 语法"),
++                // l10n:keep agent tool catalog
++                "timeoutMs" to int("超时毫秒数，默认 20000，最长 120000", 1_000, 120_000),
++            ),
++            listOf("command"),
++        ),
+     )
+ 
+     val names: List<String> = tools.map { it.name }
