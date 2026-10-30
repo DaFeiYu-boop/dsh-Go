@@ -1,3 +1,15 @@
+> ## ⚠️ 本仓库包含 root 高危改动
+>
+> 本仓库在官方 DSH Go 的基础上**新增了 `shell` 工具**：模型可以 **root 身份**在你手机上执行任意 shell 命令，**无确认、无预览、绕开全部安全检查**。
+>
+> 后果包括但不限于：**设备变砖、数据永久丢失、隐私完全暴露、账号封禁、保修失效**。
+>
+> 👉 **完整免责声明：[DISCLAIMER-ROOT.md](DISCLAIMER-ROOT.md)** —— 读它，再决定装不装
+>
+> 只想要一个安稳的手机？请用[官方版](https://github.com/ccch1mneyyy/dsh-go)。
+
+---
+
 <p align="center">
   <b>简体中文</b> · <a href="README.en.md">English</a>
 </p>
