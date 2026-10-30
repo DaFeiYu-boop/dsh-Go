@@ -29,7 +29,7 @@ ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
 - 不再区分**查看** 与 **删除"**
 - **不受无障碍权限开关的限制**（无障碍关了它照样能跑）
 
-*具体改动在`PhoneToolCatalog.kt` 与 `PhoneCore.kt`，补丁见 `0001-add-shell-tool.patch`。*
+**具体改动在**`PhoneToolCatalog.kt` 与 `PhoneCore.kt`，补丁见 `0001-add-shell-tool.patch`。
 
 ## 能做什么
 
