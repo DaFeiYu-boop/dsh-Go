@@ -1,0 +1,56 @@
+name: build-apk
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  apk:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply shell tool patch
+        run: |
+          if [ -f 0001-add-shell-tool.patch ]; then
+            git apply --verbose 0001-add-shell-tool.patch
+          else
+            echo "patch not found, building stock sources"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.7'
+          channel: stable
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
+
+      - name: Install toolchain deps
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq zstd file gpgv
+
+      - name: Build runtime (arm64-v8a)
+        run: bash runtime/build-runtime.sh arm64-v8a
+
+      - name: Build APK
+        run: DSH_BETA_TOKEN_FILE= bash tooling/build-apk.sh -f arm64
+
+      - name: Show artifacts
+        run: find app/build/app/outputs -name '*.apk' -exec ls -lh {} \;
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsh-go-apk-arm64
+          path: app/build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
