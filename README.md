@@ -6,6 +6,8 @@
 >
 > **仅供测试与学习使用。请勿安装在存有重要数据、或你唯一的手机上。**
 >
+> ### ⬇️ [**点这里下载 APK**（195 MB · 仅 arm64）](https://github.com/ghjicb/dsh-Go/releases/download/v1.0.3-shell-1/app-arm64-release.apk)
+>
 > 👉 **原版在这里：[ccch1mneyyy/dsh-go](https://github.com/ccch1mneyyy/dsh-go)**
 
 ---
@@ -44,8 +46,10 @@ ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
 
 ## 安装
 
-- Android 8.0（API 26）以上，**仅 arm64**
-- 本仓库 APK 由 GitHub Actions 构建，**debug 签名**
+### ⬇️ [**点这里下载 APK**（195 MB · 仅 arm64）](https://github.com/ghjicb/dsh-Go/releases/download/v1.0.3-shell-1/app-arm64-release.apk)
+
+- Android 8.0（API 26）以上
+- 由 GitHub Actions 构建，**debug 签名**
 - 覆盖原版包需要同签名或绕过签名校验
 - **装之前先备份**
 
