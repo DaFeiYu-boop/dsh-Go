@@ -41,7 +41,7 @@ ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
 
 - Android 8.0（API 26）以上，**仅 arm64**
 - 本仓库 APK 由 GitHub Actions 构建，**debug 签名**
-- 覆盖官方包需要同签名或绕过签名校验
+- 覆盖原版包需要同签名或绕过签名校验
 - **装之前先备份**
 
 ---
