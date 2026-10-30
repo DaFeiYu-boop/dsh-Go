@@ -4,58 +4,47 @@
 >
 > **可能导致：变砖、数据永久丢失、隐私完全暴露、账号封禁、保修失效。**
 >
-> 完整免责声明见下方「二、免责条款」，或[单独文件](DISCLAIMER-ROOT.md)。
->
 > 👉 **原版在这里：[ccch1mneyyy/dsh-go](https://github.com/ccch1mneyyy/dsh-go)**
 
 ---
 
 # DSH Go（个人 fork · 含 root shell 工具）
 
-把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 装进口袋：在手机上运行 DSH 引擎、Ubuntu 运行环境，并通过聊天界面使用 AI。
+把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 装进口袋：在手机上运行 DSH 引擎与 Ubuntu 环境，通过聊天界面使用 AI。
 
-**这是第三方、非官方客户端。** 原项目由 [ccch1mneyyy](https://github.com/ccch1mneyyy) 维护，本仓库只做了一处功能改动，其余代码均来自上游。
+**第三方、非官方客户端。** 原项目由 [ccch1mneyyy](https://github.com/ccch1mneyyy) 维护，本仓库只做了一处功能改动，其余代码均来自上游。
 
-## 一、这个 fork 改了什么
+## 这个 fork 改了什么
 
-新增一个手机工具 `shell`，实现只有一行核心逻辑：
+新增手机工具 `shell`，核心只有一行：
 
 ```kotlin
 ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
 ```
 
-它绕开 App 原有的 `SafetyGate`、敏感词过滤、点击确认等全部安全机制，且不受无障碍开关限制。
+它绕开 `SafetyGate`、敏感词过滤、点击确认等全部安全机制，且不受无障碍开关限制。改动在 `PhoneToolCatalog.kt` 与 `PhoneCore.kt`，补丁见 `0001-add-shell-tool.patch`。
 
-改动文件：`PhoneToolCatalog.kt`（加工具声明）、`PhoneCore.kt`（加执行体）。完整补丁见 `0001-add-shell-tool.patch`。
+## 能做什么
+
+- **本机运行**：App 内安装 Ubuntu、Node.js 与 DSH，无需另装 Termux
+- **远程连接**：SSH / DSH Remote 接电脑或服务器
+- **聊天与工具**：模型切换、图片、语音、工具审批与提问
+- **插件界面**：原生工具卡、表单、面板
+- **手机操控**：读屏、点按、输入；**本 fork 另可用 root 直接执行**
+- **外观**：主题、图标、桌宠
+
+细节与限制见[原项目文档](https://github.com/ccch1mneyyy/dsh-go)。
+
+## 安装
+
+- Android 8.0（API 26）以上，**仅 arm64**
+- 本仓库 APK 由 GitHub Actions 构建，**debug 签名**
+- 覆盖官方包需要同签名或绕过签名校验
+- **装之前先备份**
 
 ---
 
 # ⚠️ Root / shell 工具免责声明
-
-> 本仓库是 **个人 fork**，在官方 DSH Go 的基础上增加了 `shell` 工具，允许模型以 **root 权限**在手机上执行任意 shell 命令。
->
-> **这段说明是本仓库最重要的部分。请在安装、使用前完整读一遍。**
-> 如果你不接受下面任何一条，请**不要安装本仓库构建的 APK**，改用[官方版本](https://github.com/ccch1mneyyy/dsh-go)。
-
----
-
-## 一、这个 fork 改了什么
-
-在 `PhoneToolCatalog.kt` 与 `PhoneCore.kt` 中新增一个手机工具 `shell`，实现为：
-
-```kotlin
-ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
-```
-
-也就是说，**模型生成的一条命令，会以 root 身份、在系统层、无任何确认弹窗地执行**。它会：
-
-- 绕开 App 原有的 `SafetyGate`、敏感词过滤、点击确认等全部安全机制
-- 不再区分"读"与"写"，不再区分"查看"与"删除"
-- 不受无障碍权限开关的限制（无障碍关了它照样能跑）
-
-这是它存在的意义，**也是它的全部风险来源**。
-
----
 
 ## 二、你会承担的风险
 
@@ -141,29 +130,9 @@ root 能读：
 
 ---
 
-## 六、能做什么（精简版）
-
-在原版功能基础上，本 fork 多出 root 通道。原版能力：
-
-- **本机运行**：App 内安装 Ubuntu、Node.js 与 DSH，无需另装 Termux
-- **远程连接**：SSH / DSH Remote 接电脑或服务器
-- **聊天与工具**：模型切换、图片、语音、工具审批与提问
-- **插件界面**：原生工具卡、表单、面板
-- **手机操控**：读屏、点按、输入（本 fork 另可用 root 直接执行）
-- **外观**：主题、图标、桌宠
-
-功能细节、限制与配置，请看[原项目文档](https://github.com/ccch1mneyyy/dsh-go)。
-
-## 七、安装
-
-- Android 8.0（API 26）及以上，**仅 arm64**
-- 本仓库 APK 通过 GitHub Actions 构建，**debug 签名**
-- 覆盖官方包需要同签名，或自行绕过签名校验
-- 装之前请先备份数据
-
-## 八、许可证与致谢
+## 许可证与致谢
 
 - 代码来自 [ccch1mneyyy/dsh-go](https://github.com/ccch1mneyyy/dsh-go)，版权归原作者
 - 许可证见 [LICENSE](LICENSE)，本 fork 遵循同一许可证
-- 本仓库的改动仅为上述 `shell` 工具与本文档
+- 本仓库改动仅为上述 `shell` 工具与本文档
 - **不是官方发布，不受上游支持**
