@@ -24,7 +24,11 @@
 ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
 ```
 
-它绕开 `SafetyGate`、敏感词过滤、点击确认等全部安全机制，且不受无障碍开关限制。改动在 `PhoneToolCatalog.kt` 与 `PhoneCore.kt`，补丁见 `0001-add-shell-tool.patch`。
+绕开 App 原有的 SafetyGate、敏感词过滤、点击确认等全部安全机制
+不再区分"读"与"写"
+不再区分"查看"与"删除"
+不受无障碍权限开关的限制（无障碍关了它照样能跑）
+具体改动在`PhoneToolCatalog.kt` 与 `PhoneCore.kt`，补丁见 `0001-add-shell-tool.patch`。
 
 ## 能做什么
 
