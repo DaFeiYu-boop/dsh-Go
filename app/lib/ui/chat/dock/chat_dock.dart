@@ -7,9 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../state/chat_state.dart';
 import '../../../state/goal_dock_state.dart';
+import '../../../state/phone_state.dart';
 import 'dock_pill.dart';
 import 'goal_bar.dart';
 import 'goal_sheet.dart';
+import 'root_pill.dart';
 import 'todo_bar.dart';
 
 /// 输入条上方的停靠区:待办在上、目标在下(官方的顺序:Todo、Goal),再往下
@@ -26,6 +28,8 @@ class ChatDock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final todos = ref.watch(chatProvider(sessionId).select((s) => TodoDockSummary.of(s.todos, running: s.running)));
     final goal = ref.watch(goalDockProvider(sessionId));
+    // 「启用 root」只在手机操控开着时有意义：关着的时候 shell 工具整体不可用。
+    final phoneOn = ref.watch(phoneProvider.select((s) => s.status.enabled));
     // Both bars blur the same backdrop and never overlap: one sample.
     return BackdropGroup(
       child: Column(
@@ -39,6 +43,10 @@ class ChatDock extends ConsumerWidget {
           DockSlot(
             key: const ValueKey('goal'),
             child: goal == null ? null : GoalBar(goal: goal, onTap: () => runGoalActions(context, ref, sessionId)),
+          ),
+          DockSlot(
+            key: const ValueKey('root'),
+            child: phoneOn ? const RootPill() : null,
           ),
         ],
       ),
