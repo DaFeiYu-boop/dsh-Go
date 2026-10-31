@@ -224,6 +224,7 @@ class PhoneStatus {
     this.ready = true,
     this.error,
     this.enabled = false,
+    this.rootShell = false,
     this.bridgeListening = false,
     this.a11y = const PhoneA11yStatus(),
     this.a11yKeeper = const A11yKeeperStatus(),
@@ -239,6 +240,7 @@ class PhoneStatus {
   const PhoneStatus.notReady([this.error])
     : ready = false,
       enabled = false,
+      rootShell = false,
       bridgeListening = false,
       a11y = const PhoneA11yStatus(),
       a11yKeeper = const A11yKeeperStatus(),
@@ -251,6 +253,7 @@ class PhoneStatus {
 
   factory PhoneStatus.fromMap(Map<Object?, Object?> m) => PhoneStatus(
     enabled: _flag(m['enabled']),
+    rootShell: _flag(m['rootShell']),
     bridgeListening: _flag(m['bridgeListening']),
     a11y: PhoneA11yStatus.fromMap(_map(m['a11y'])),
     a11yKeeper: A11yKeeperStatus.fromMap(_map(m['a11yKeeper'])),
@@ -270,6 +273,9 @@ class PhoneStatus {
 
   /// The master switch 「手机操控」.
   final bool enabled;
+
+  /// 聊天页的「启用 root」：关着时 `shell` 工具拒绝执行。
+  final bool rootShell;
   final bool bridgeListening;
   final PhoneA11yStatus a11y;
   final A11yKeeperStatus a11yKeeper;
@@ -285,10 +291,11 @@ class PhoneStatus {
   final PhoneTaskStatus task;
   final PhoneDevice device;
 
-  PhoneStatus copyWith({bool? enabled}) => PhoneStatus(
+  PhoneStatus copyWith({bool? enabled, bool? rootShell}) => PhoneStatus(
     ready: ready,
     error: error,
     enabled: enabled ?? this.enabled,
+    rootShell: rootShell ?? this.rootShell,
     bridgeListening: bridgeListening,
     a11y: a11y,
     a11yKeeper: a11yKeeper,
@@ -780,6 +787,9 @@ class PhoneChannel {
   }
 
   Future<bool> setEnabled(bool enabled) => _bool('setEnabled', {'enabled': enabled});
+
+  /// 聊天页的「启用 root」：只影响之后的 `shell` 调用，不重启引擎。
+  Future<bool> setRootShell(bool on) => _bool('setRootShell', {'on': on});
 
   Future<bool> openAccessibilitySettings() => _bool('openAccessibilitySettings');
 
