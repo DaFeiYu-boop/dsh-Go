@@ -190,6 +190,13 @@ class PhoneController extends Notifier<PhoneState> {
 
   Future<bool> openAccessibilitySettings() => _channel.openAccessibilitySettings();
 
+  /// 聊天页的「启用 root」。只翻一个开关，不重启引擎：\`shell\` 每次调用时现查。
+  Future<bool> setRootShell(bool on) async {
+    final ok = await _channel.setRootShell(on);
+    if (ref.mounted && ok) state = state.copyWith(status: state.status.copyWith(rootShell: on));
+    return ok;
+  }
+
   Future<PhoneResult> grantSecureSettings() => _thenRefresh(_channel.grantSecureSettings());
 
   Future<bool> openAppDetails() => _channel.openAppDetails();
