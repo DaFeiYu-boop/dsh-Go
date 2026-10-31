@@ -423,6 +423,7 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
 
     fun status(): Map<String, Any?> = linkedMapOf(
         "enabled" to isEnabled(),
+        "rootShell" to rootShellEnabled(),
         "bridgeListening" to bridge.listening,
         "a11y" to linkedMapOf("enabled" to a11yEnabledInSettings(), "serviceConnected" to (PhoneRegistry.mainDriver != null)),
         "overlay" to (PhoneRegistry.overlayGate != null),
@@ -547,6 +548,15 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
 
     override fun enabled(): Boolean = isEnabled()
 
+    /** 聊天页的「启用 root」：关着时 shell 工具拒绝执行。默认关。 */
+    override fun rootShellEnabled(): Boolean = prefs.getBoolean(K_ROOT_SHELL, false)
+
+    /** 开关只影响下一次 `shell` 调用，不重启引擎。 */
+    fun setRootShell(on: Boolean) {
+        prefs.edit().putBoolean(K_ROOT_SHELL, on).apply()
+        emitStatus()
+    }
+
     override fun isLocked(): Boolean {
         val km = app.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val power = app.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -611,6 +621,9 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
         const val SERVER_VERSION = "1"
         private const val PREFS = "dsh_phone"
         private const val K_ENABLED = "enabled"
+
+        /** 聊天页「启用 root」的开关，默认关。 */
+        private const val K_ROOT_SHELL = "root_shell"
         private const val K_POLICIES = "policies"
         private const val K_TCP_FALLBACK = "tcpFallback"
         private const val CHANNEL_FIX = "dsh-phone-fix"
