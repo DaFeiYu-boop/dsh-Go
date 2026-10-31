@@ -12,12 +12,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Apply shell tool patch
+      - name: Apply shell tool patch (optional)
         run: |
-          if [ -f 0001-add-shell-tool.patch ]; then
+          if [ -f 0001-add-shell-tool.patch ] && git apply --check 0001-add-shell-tool.patch 2>/dev/null; then
             git apply --verbose 0001-add-shell-tool.patch
           else
-            echo "patch not found, building stock sources"
+            echo "no patch to apply (change is already in the tree)"
           fi
 
       - uses: actions/setup-java@v4
