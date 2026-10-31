@@ -22,6 +22,7 @@ object PhoneToolCatalog {
     const val KEY = "key"
     const val TAP_XY = "tap_xy"
     const val HANDOFF = "handoff"
+    const val SHELL = "shell"
 
     class Tool(val name: String, val description: String, val properties: Map<String, Any?>, val required: List<String>) {
         fun toJson(): Map<String, Any?> = linkedMapOf(
@@ -259,6 +260,20 @@ object PhoneToolCatalog {
             // l10n:keep agent tool catalog
             linkedMapOf("reason" to str("要用户做什么，一句话")),
             listOf("reason"),
+        ),
+        Tool(
+            SHELL,
+            // l10n:keep agent tool catalog
+            "在手机上以 root 执行一条 shell 命令（经 su），返回退出码和输出。会绕开手机操控的安全检查：" +
+                // l10n:keep agent tool catalog
+                "只在用户明确要求、或别无他法时用。删除、改系统、动钱的命令先问用户。",
+            linkedMapOf(
+                // l10n:keep agent tool catalog
+                "command" to str("要执行的命令，按 sh 语法"),
+                // l10n:keep agent tool catalog
+                "timeoutMs" to int("超时毫秒数，默认 20000，最长 120000", 1_000, 120_000),
+            ),
+            listOf("command"),
         ),
     )
 
