@@ -1,6 +1,7 @@
 package io.github.ccch1mneyyy.dsh_app.phone
 
 import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 
 enum class A11yState { CONNECTED, ENABLED_NOT_CONNECTED, DISABLED }
 
@@ -8,6 +9,9 @@ enum class A11yState { CONNECTED, ENABLED_NOT_CONNECTED, DISABLED }
 interface PhoneEnv {
     /** The master switch. */
     fun enabled(): Boolean
+
+    /** 聊天页的「启用 root」开关：关着时 `shell` 工具拒绝执行。默认关，测试可不管它。 */
+    fun rootShellEnabled(): Boolean = false
     fun policies(): PhonePolicies
     fun isLocked(): Boolean
     fun gate(): UserGate?
@@ -159,6 +163,7 @@ class PhoneCore(
             PhoneToolCatalog.TAP, PhoneToolCatalog.TYPE, PhoneToolCatalog.SCROLL, PhoneToolCatalog.TAP_XY -> act(name, a, scope)
             PhoneToolCatalog.KEY -> key(a)
             PhoneToolCatalog.HANDOFF -> handoff(a, scope)
+            PhoneToolCatalog.SHELL -> shell(a)
             // l10n:keep agent tool result
             else -> Out("没有这个手机工具：$name", error = true)
         }
@@ -593,6 +598,51 @@ class PhoneCore(
             decision = if (res.ok) "ok" else "failed")
     }
 
+    private fun shell(a: Args): Out {
+        if (!env.rootShellEnabled()) {
+            // l10n:keep agent tool result
+            return Out(
+                "root 未启用：请用户先在聊天页输入框上方点「启用 root」，再调用这个工具。",
+                error = true,
+                summary = "shell",
+                decision = "refused:root-off",
+            )
+        }
+        // l10n:keep agent tool result
+        val command = a.str("command") ?: return Out("shell 需要 command：要执行的命令。", error = true)
+        val timeoutMs = (a.int("timeoutMs") ?: 20_000).toLong().coerceIn(1_000L, 120_000L)
+        val process = try {
+            ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+        } catch (e: Exception) {
+            // l10n:keep agent tool result
+            return Out(
+                "起不了 su（${e.message ?: e.javaClass.simpleName}）。这台手机要么没 root，" +
+                    // l10n:keep agent tool result
+                    "要么 root 管理器没把权限给 DSH Go。",
+                error = true,
+                summary = "shell",
+                decision = "refused:no-su",
+            )
+        }
+        val finished = try {
+            process.waitFor(timeoutMs, TimeUnit.MILLISECONDS)
+        } catch (e: InterruptedException) {
+            process.destroyForcibly()
+            Thread.currentThread().interrupt()
+            // l10n:keep agent tool result
+            return Out("命令被中断了。", error = true, summary = "shell", decision = "timeout")
+        }
+        if (!finished) {
+            process.destroyForcibly()
+            // l10n:keep agent tool result
+            return Out("命令超过 ${timeoutMs}ms 没结束，已终止。", error = true, summary = "shell", decision = "timeout")
+        }
+        val output = process.inputStream.bufferedReader().use { it.readText() }.take(MAX_SHELL_CHARS)
+        val code = process.exitValue()
+        val body = if (output.isBlank()) "(没有输出)" else output.trimEnd()
+        return Out("$ $command\n[exit $code]\n$body", error = code != 0, summary = "shell", decision = if (code == 0) "ok" else "failed")
+    }
+
     private fun handoff(a: Args, scope: SerialWorker.Scope): Out {
         val owner = tasks.activeOwner() ?: return stoppedOut("handoff")
         // l10n:keep agent tool result
@@ -646,6 +696,7 @@ class PhoneCore(
         const val SETTLE_AFTER_LAUNCH_MS = 1200L
         const val MAX_APPS = 150
         const val MAX_COLLECT_CHARS = 16_000
+        const val MAX_SHELL_CHARS = 8_000
 
         /** The call's own time, not counting waits for the person. */
         fun budgetMs(tool: String): Long = when (tool) {
@@ -655,6 +706,7 @@ class PhoneCore(
             PhoneToolCatalog.SCREEN -> 12_000L
             PhoneToolCatalog.COLLECT -> 120_000L
             PhoneToolCatalog.HANDOFF -> 30_000L
+            PhoneToolCatalog.SHELL -> 125_000L
             else -> 30_000L
         }
     }
