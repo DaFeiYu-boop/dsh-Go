@@ -18,18 +18,30 @@
 
 ## 这个 fork 改了什么
 
-新增手机工具 `shell`，核心只有一行：
+### 1. 手机工具 `shell`
 
-```kotlin
-ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+以 root 身份执行命令，核心就一行 `ProcessBuilder("su","-c",command)`。绕开 SafetyGate / 敏感词 / 点击确认，也不受无障碍开关限制。
+
+### 2. 聊天页的「启用 root」开关
+
+输入框上方一条玻璃胶囊，和待办、目标同款：
+
+```
+[ ▣  启用 root              点击开启 ]   灰色，默认关
+[ ▣  root 已启用            点击关闭 ]   橙色，开着
 ```
 
-- 绕开 App 原有的 **SafetyGate**、**敏感词过滤**、**点击确认等全部安全机制**
-- 不再区分**读** 与 **写**
-- 不再区分**查看** 与 **删除"**
-- **不受无障碍权限开关的限制**（无障碍关了它照样能跑）
+- 点一下给 root，再点一下收回，不用去 KernelSU 翻授权
+- 开启前弹一次确认，写明后果
+- **关着时 `shell` 直接拒绝**，返回「root 未启用，请先在聊天页打开」
+- 开关不重启引擎，状态存在 SharedPreferences，换会话也保持
 
-**具体改动在**`PhoneToolCatalog.kt` 与 `PhoneCore.kt`，补丁见 `0001-add-shell-tool.patch`。
+这是 App 内的一层刹车，**不是安全边界**：真正的边界在 KernelSU 那边。
+
+### 3. 工具集不变
+
+`shell` 一直在工具列表里，开关只控制它肯不肯执行（上游要求工具集固定，否则 KV cache 全失效）。
+
 
 ## 能做什么
 
