@@ -263,7 +263,6 @@ object PhoneToolCatalog {
             ),
             listOf("command"),
         ),
-        ),
     )
 
     val names: List<String> = tools.map { it.name }
