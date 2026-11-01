@@ -174,6 +174,12 @@ class PhonePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandle
             // 设置 → 手机操控 → 悬浮条: {idleOpacity 0.3–1, autoCollapse}; a showing overlay follows at once.
             "overlayPrefs" -> result.success(OverlayPrefs.read(appContext).toMap())
             "setOverlayPrefs" -> result.success(OverlayPrefs.write(appContext, call.arguments as? Map<*, *>).toMap())
+            // 聊天页输入框上方的「启用 root」胶囊：{on: bool}。只影响之后对 shell 的调用。
+            "setRootShell" -> {
+                val on = call.argument<Boolean>("on") ?: false
+                control.setRootShell(on)
+                result.success(true)
+            }
             else -> result.notImplemented()
         }
         if (call.method == "setBackgroundMode" || call.method == "adbConnect" || call.method == "requestShizukuPermission") {
