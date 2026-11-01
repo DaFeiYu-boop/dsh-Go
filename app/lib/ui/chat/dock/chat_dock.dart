@@ -80,10 +80,9 @@ class RootDockSlot extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final on = ref.watch(phoneProvider.select((s) => s.status.enabled));
     return DockSlot(
       key: const ValueKey('root'),
-      child: on ? const RootPill() : null,
+      child: const RootPill(),
     );
   }
 }
