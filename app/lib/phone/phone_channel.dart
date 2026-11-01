@@ -134,7 +134,6 @@ class PhoneA11yStatus {
 
   /// The user turned DSH on in the system accessibility settings.
   final bool enabled;
-  final bool rootShell;
 
   /// The service is bound and answering (false right after a force stop).
   final bool serviceConnected;
@@ -389,6 +388,7 @@ class PhoneStatus {
   /// The master switch 「手机操控」.
   final bool enabled;
   final bool bridgeListening;
+  final bool rootShell;
   final PhoneA11yStatus a11y;
   final A11yKeeperStatus a11yKeeper;
   final bool overlay;
