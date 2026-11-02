@@ -151,6 +151,10 @@ class PhonePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandle
                 control.setAllowedCommands(list)
                 result.success(linkedMapOf("ok" to true, "count" to list.size))
             }
+            "setSdcardAllowed" -> {
+                control.setSdcardAllowed(call.argument<Boolean>("on") ?: false)
+                result.success(mapOf("ok" to true))
+            }
             "setScriptConfirmBypass" -> {
                 control.setScriptConfirmBypass(call.argument<Boolean>("on") == true)
                 result.success(true)

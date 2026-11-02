@@ -1794,9 +1794,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                             todoProgress: ref.watch(dockFoldedProvider),
                                           ),
                                         ],
+                                        // 终端权限胶囊在「完全权限」上方，贴着输入框的是后者。
+                                        if (!readOnly) const RootDockSlot(),
                                         // It gives the activity strip its place while a reply generates.
                                         if (!readOnly) ComposerStripSlot(sessionId: sessionId, visible: !running),
-                                        if (!readOnly) const RootDockSlot(),
                                       ],
                                       accessory: pillsBesideStrip
                                           ? _stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false)

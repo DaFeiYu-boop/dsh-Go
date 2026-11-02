@@ -39,6 +39,8 @@ interface PhoneEnv {
     fun scriptConfirmBypass(): Boolean = false
 
     fun cacheDir(): File? = null
+
+    fun sdcardAllowed(): Boolean = false
 }
 
 /**
@@ -195,27 +197,28 @@ class PhoneCore(
             )
         }
         val command = a.str("command").orEmpty().trim()
+        val shellSummary = command.take(120).replace('\n', ' ')
         if (command.isEmpty()) {
-            return Out("command 不能为空。", error = true, summary = PhoneToolCatalog.SHELL)
+            return Out("command 不能为空。", error = true, summary = shellSummary)
         }
         if (command.length > MAX_SHELL_CHARS) {
             return Out(
                 "命令太长（上限 $MAX_SHELL_CHARS 字符）。",
                 error = true,
-                summary = PhoneToolCatalog.SHELL,
+                summary = shellSummary,
             )
         }
-        when (val v = ShellGuard.judge(mode, command, env.allowedCommands(), env.scriptConfirmBypass())) {
+        when (val v = ShellGuard.judge(mode, command, env.allowedCommands(), env.scriptConfirmBypass(), env.sdcardAllowed())) {
             is ShellVerdict.Deny -> return Out(
                 v.reason,
                 error = true,
-                summary = PhoneToolCatalog.SHELL,
+                summary = shellSummary,
                 decision = "refused:guard",
             )
             is ShellVerdict.Confirm -> return Out(
                 "这条命令要执行脚本（${v.script ?: command}），需要用户在弹窗里确认。把命令内容告诉用户，等他点确认再重试。",
                 error = true,
-                summary = PhoneToolCatalog.SHELL,
+                summary = shellSummary,
                 decision = "needs-confirm",
             )
             ShellVerdict.Allow -> Unit
@@ -234,7 +237,7 @@ class PhoneCore(
             return Out(
                 "跑不起来：${e.javaClass.simpleName}${e.message?.let { "：$it" } ?: ""}。这台手机可能没有 root。",
                 error = true,
-                summary = PhoneToolCatalog.SHELL,
+                summary = shellSummary,
             )
         }
         val finished = try {
@@ -268,7 +271,7 @@ class PhoneCore(
         val prefix = if (finished) "" else "（超时 ${timeoutMs}ms，已终止）\n"
         return Out(
             if (prefix.isEmpty() && body.isBlank()) "（没有输出）" else prefix + body,
-            summary = PhoneToolCatalog.SHELL,
+            summary = shellSummary,
             decision = if (finished) null else "timeout",
         )
     }

@@ -334,12 +334,7 @@ class _PhoneControlScreenState extends ConsumerState<PhoneControlScreen> {
             ListPageCard(
               title: l10n.phoneControlAdvanced,
               children: [
-                ListPageRow(
-                  icon: Icons.terminal,
-                  title: '终端权限',
-                  subtitle: _shellSummary(status),
-                  onTap: () => _push(const ShellPermissionsPage()),
-                ),
+                
                 ListPageRow(
                   icon: AppIcons.dndMode,
                   spot: SettingsIndex.entry(SettingsPageId.phoneDnd),
@@ -367,12 +362,6 @@ class _PhoneControlScreenState extends ConsumerState<PhoneControlScreen> {
       ],
     );
   }
-
-  String _shellSummary(PhoneStatus s) => switch (s.shell.mode) {
-    'safe' => '安全模式：只跑你允许的命令',
-    'full' => '高危模式：任意命令都能跑',
-    _ => '原版模式：不给终端',
-  };
 
   ValueChanged<bool>? _switchHandler(PhoneState state, PhoneBlocker? blocker) {
     if (state.toggling || !state.loaded) return null;

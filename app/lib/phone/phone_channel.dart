@@ -953,6 +953,9 @@ class PhoneChannel {
   Future<bool> setScriptConfirmBypass(bool on) =>
       _bool('setScriptConfirmBypass', {'on': on});
 
+  Future<bool> setSdcardAllowed(bool on) =>
+      _bool('setSdcardAllowed', {'on': on});
+
   Future<bool> openAccessibilitySettings() => _bool('openAccessibilitySettings');
 
   Future<PhoneResult> grantSecureSettings() => _result('grantSecureSettings');
@@ -1152,6 +1155,7 @@ class PhoneShellStatus {
     this.mode = 'original',
     this.allowed = const <String>[],
     this.scriptConfirmBypass = false,
+    this.sdcardAllowed = false,
     this.commands = const <PhoneShellCommand>[],
   });
 
@@ -1161,6 +1165,7 @@ class PhoneShellStatus {
         (m['allowed'] as List?)?.whereType<String>().toList(growable: false) ??
         const <String>[],
     scriptConfirmBypass: m['scriptConfirmBypass'] == true,
+    sdcardAllowed: m['sdcardAllowed'] == true,
     commands:
         (m['commands'] as List?)
             ?.whereType<Map>()
@@ -1175,6 +1180,7 @@ class PhoneShellStatus {
   /// 安全模式下用户勾选的命令名。
   final List<String> allowed;
   final bool scriptConfirmBypass;
+  final bool sdcardAllowed;
   final List<PhoneShellCommand> commands;
 
   bool get isOriginal => mode == 'original';
@@ -1184,13 +1190,19 @@ class PhoneShellStatus {
 
 /// 命令清单里的一条：名字 + 分组。
 class PhoneShellCommand {
-  const PhoneShellCommand(this.name, this.group);
+  const PhoneShellCommand(this.name, this.group, {this.desc = ''});
 
-  factory PhoneShellCommand.fromMap(Map m) =>
-      PhoneShellCommand((m['name'] as String?) ?? '', (m['group'] as String?) ?? '');
+  factory PhoneShellCommand.fromMap(Map m) => PhoneShellCommand(
+    (m['name'] as String?) ?? '',
+    (m['group'] as String?) ?? '',
+    desc: (m['desc'] as String?) ?? '',
+  );
 
   final String name;
 
   /// read / file / system / network / packages / script。
   final String group;
+
+  /// 一句话说明这个命令干什么，设置页显示。
+  final String desc;
 }

@@ -50,12 +50,20 @@ object ShellGuard {
         "/sdcard/DCIM/", "/sdcard/Android/obb/", "/storage/emulated/0/DCIM/",
     )
 
-    /** 安全模式唯一允许写入的位置。**只有这三个**，别的一律拒绝。 */
-    private val SAFE_ROOTS = listOf(
-        "/sdcard/Download/", "/storage/emulated/0/Download/",
-        "/sdcard/Android/data/", "/storage/emulated/0/Android/data/",
-        "/data/local/tmp/",
+    /** App 自己的私有目录：只在安全模式下放行，且要躲开 [FORBIDDEN] 里的 /data/data/。 */
+    private val APP_PRIVATE = listOf(
+        "/data/user/0/io.github.ccch1mneyyy.dsh_app/",
+        "/data/data/io.github.ccch1mneyyy.dsh_app/",
     )
+
+    /** 永远可写的几个位置。 */
+    private val BASE_ROOTS = listOf(
+        "/sdcard/Download/", "/storage/emulated/0/Download/",
+        "/data/local/tmp/",
+    ) + APP_PRIVATE
+
+    /** 用户单独确认过「整个 /sdcard」之后才能写的位置。 */
+    private val SDCARD_ROOTS = listOf("/sdcard/", "/storage/emulated/0/")
 
     /** 会改文件的命令：目标必须落在 [SAFE_ROOTS]。 */
     private val WRITE_CMDS = setOf(
@@ -67,6 +75,7 @@ object ShellGuard {
         command: String,
         allowed: Set<String>,
         scriptConfirmBypass: Boolean,
+        sdcardOn: Boolean = false,
     ): ShellVerdict {
         val cmd = command.trim()
         if (cmd.isEmpty()) return ShellVerdict.Deny("命令是空的。")
@@ -100,7 +109,7 @@ object ShellGuard {
                     pathArgs(seg)
                 }
                 for (p in targets) {
-                    if (!inSafeRoot(p)) {
+                    if (!inSafeRoot(p, sdcardOn)) {
                         return ShellVerdict.Deny(
                             "「$word」只能改 /sdcard/Download、/sdcard/Android/data、/data/local/tmp 里的东西，这一条碰到了 $p。",
                         )
@@ -109,7 +118,7 @@ object ShellGuard {
                 // rm 的相对路径等于「不知道删的是哪」，直接拒绝。
                 if (word == "rm") {
                     for (p in plainArgs(seg)) {
-                        if (!p.startsWith("/") || !inSafeRoot(p)) {
+                        if (!p.startsWith("/") || !inSafeRoot(p, sdcardOn)) {
                             return ShellVerdict.Deny(
                                 "rm 只能删绝对路径，而且必须在上面的三个目录里。$p 不符合。",                            )
                         }
@@ -153,6 +162,7 @@ object ShellGuard {
         for (m in Regex("""/[^\s'"`()|;&<>]+""").findAll(cmd)) {
             val t = m.value
             val p = if (t.endsWith("/")) t else "$t/"
+            if (APP_PRIVATE.any { p.startsWith(it) }) continue
             for (f in FORBIDDEN) {
                 if (p == f || p.startsWith(f)) return t
             }
@@ -170,38 +180,134 @@ object ShellGuard {
     private fun plainArgs(seg: String): List<String> =
         seg.split(Regex("""\s+""")).drop(1).filter { it.isNotEmpty() && !it.startsWith("-") }
 
-    /** 规范化后是否落在允许写的位置。 */
-    private fun inSafeRoot(p: String): Boolean {
+    /** 规范化后是否落在允许写的位置。[sdcardOn] = 用户是否确认过「整个 /sdcard」。 */
+    private fun inSafeRoot(p: String, sdcardOn: Boolean): Boolean {
         val norm = try {
             java.nio.file.Paths.get(p).normalize().toString()
         } catch (_: Exception) {
             return false
         }
         val withSlash = if (norm.endsWith("/")) norm else "$norm/"
-        return SAFE_ROOTS.any { withSlash.startsWith(it) }
+        if (BASE_ROOTS.any { withSlash.startsWith(it) }) return true
+        return sdcardOn && SDCARD_ROOTS.any { withSlash.startsWith(it) }
     }
 }
 
 /** 命令清单：设置页按组展示，默认值也在这里。 */
 object ShellCommands {
-    /** 分组：read 只读 / file 文件 / system 安卓 / network 网络 / packages 包管理 / script 脚本。 */
-    val CATALOG: List<Map<String, Any?>> = buildList {
-        fun g(group: String, vararg names: String) {
-            names.forEach { add(linkedMapOf<String, Any?>("name" to it, "group" to group)) }
-        }
-        g("read", "ls", "cat", "head", "tail", "grep", "wc", "sort", "uniq", "cut", "find", "stat",
-            "file", "du", "df", "free", "ps", "top", "uptime", "id", "whoami", "getprop", "dumpsys",
-            "logcat", "screencap", "date", "echo", "printf", "pwd", "env", "uname", "nproc", "which",
-            "basename", "dirname", "realpath", "tr")
-        g("file", "cp", "mv", "rm", "mkdir", "rmdir", "touch", "chmod", "chown", "ln", "tee",
-            "truncate", "sed", "awk")
-        g("system", "am", "pm", "input", "cmd", "settings", "svc", "wm")
-        g("network", "curl", "ping", "nslookup", "netstat")
-        g("packages", "apt", "apt-get", "pip", "pip3", "npm", "pnpm", "git")
-        g("script", "sh", "bash", "zsh", "python", "python3", "node", "eval", "exec", "xargs", "source")
+    /** 分组顺序 + 中文标题 + 一句话说明。 */
+    val GROUPS: List<Map<String, String>> = listOf(
+        linkedMapOf("id" to "read", "title" to "只读命令", "desc" to "只看不改：读文件、看进程和系统状态"),
+        linkedMapOf("id" to "file", "title" to "文件操作", "desc" to "复制、移动、删除；只能碰 Download、tmp、App 私有目录（开 /sdcard 后含整个存储）"),
+        linkedMapOf("id" to "system", "title" to "系统操作", "desc" to "安卓层面的开关：装应用、模拟点击、改设置"),
+        linkedMapOf("id" to "network", "title" to "网络", "desc" to "联网请求、测速、查 DNS"),
+        linkedMapOf("id" to "packages", "title" to "包管理", "desc" to "apt / pip / npm / git，第一次用要联网下载"),
+        linkedMapOf("id" to "script", "title" to "脚本执行", "desc" to "把整段脚本交给解释器：内容不受白名单约束"),
+    )
+
+    /** 命令 → (分组, 一句话介绍)。 */
+    private val DEF: List<Triple<String, String, String>> = listOf(
+        Triple("ls", "read", "列出目录内容"),
+        Triple("cat", "read", "输出文件内容"),
+        Triple("head", "read", "看文件开头几行"),
+        Triple("tail", "read", "看文件结尾几行"),
+        Triple("grep", "read", "在文件或输出里搜文字"),
+        Triple("wc", "read", "数行数、字数"),
+        Triple("sort", "read", "排序"),
+        Triple("uniq", "read", "去重"),
+        Triple("cut", "read", "按列截取"),
+        Triple("find", "read", "按名字/时间找文件"),
+        Triple("stat", "read", "看文件大小、权限、时间"),
+        Triple("file", "read", "判断文件是什么类型"),
+        Triple("du", "read", "看目录占多少空间"),
+        Triple("df", "read", "看各分区剩余空间"),
+        Triple("free", "read", "看内存占用"),
+        Triple("ps", "read", "看正在跑的进程"),
+        Triple("top", "read", "看谁在吃 CPU"),
+        Triple("uptime", "read", "开机多久、负载多少"),
+        Triple("id", "read", "看当前用户和权限"),
+        Triple("whoami", "read", "看当前用户名"),
+        Triple("getprop", "read", "读系统属性：型号、Android 版本"),
+        Triple("dumpsys", "read", "读系统服务状态：电池、显示、WiFi"),
+        Triple("logcat", "read", "读系统日志"),
+        Triple("screencap", "read", "截屏存成图片"),
+        Triple("date", "read", "看当前时间"),
+        Triple("echo", "read", "输出一段文字"),
+        Triple("printf", "read", "格式化输出文字"),
+        Triple("pwd", "read", "显示当前目录"),
+        Triple("env", "read", "看环境变量"),
+        Triple("uname", "read", "看内核版本"),
+        Triple("nproc", "read", "看有几个 CPU 核"),
+        Triple("which", "read", "查命令装在哪"),
+        Triple("basename", "read", "取路径里的文件名"),
+        Triple("dirname", "read", "取路径里的目录部分"),
+        Triple("realpath", "read", "把相对路径转成绝对路径"),
+        Triple("tr", "read", "替换或删除字符"),
+        Triple("cp", "file", "复制文件"),
+        Triple("mv", "file", "移动或改名"),
+        Triple("rm", "file", "删除文件"),
+        Triple("mkdir", "file", "新建目录"),
+        Triple("rmdir", "file", "删除空目录"),
+        Triple("touch", "file", "新建空文件或改时间"),
+        Triple("chmod", "file", "改文件权限"),
+        Triple("chown", "file", "改文件属主"),
+        Triple("ln", "file", "建快捷方式（软链接）"),
+        Triple("tee", "file", "把输出同时写进文件"),
+        Triple("truncate", "file", "把文件截断或撑大"),
+        Triple("sed", "file", "按规则替换文件内容"),
+        Triple("awk", "file", "按列处理文本"),
+        Triple("am", "system", "启动应用、发广播"),
+        Triple("pm", "system", "装/卸应用、查包名"),
+        Triple("input", "system", "模拟点屏幕、打字"),
+        Triple("cmd", "system", "调系统命令（WiFi、电池等）"),
+        Triple("settings", "system", "读改系统设置项"),
+        Triple("svc", "system", "开关 WiFi、数据、飞行模式"),
+        Triple("wm", "system", "改屏幕分辨率、密度"),
+        Triple("curl", "network", "发 HTTP 请求"),
+        Triple("ping", "network", "测网络通不通"),
+        Triple("nslookup", "network", "查域名对应 IP"),
+        Triple("netstat", "network", "看网络连接"),
+        Triple("apt", "packages", "装系统软件包"),
+        Triple("apt-get", "packages", "装系统软件包（老写法）"),
+        Triple("pip", "packages", "装 Python 包"),
+        Triple("pip3", "packages", "装 Python 3 包"),
+        Triple("npm", "packages", "装 Node 包"),
+        Triple("pnpm", "packages", "装 Node 包（更快）"),
+        Triple("git", "packages", "拉代码、提交"),
+        Triple("sh", "script", "跑一段 shell 脚本"),
+        Triple("bash", "script", "跑一段 bash 脚本"),
+        Triple("zsh", "script", "跑一段 zsh 脚本"),
+        Triple("python", "script", "跑 Python 代码"),
+        Triple("python3", "script", "跑 Python 3 代码"),
+        Triple("node", "script", "跑 JavaScript 代码"),
+        Triple("eval", "script", "把字符串当命令执行"),
+        Triple("exec", "script", "替换成另一个进程执行"),
+        Triple("xargs", "script", "把输入拼成命令批量执行"),
+        Triple("source", "script", "加载脚本文件"),
+    )
+
+    /** 设置页用的扁平清单，每项带分组和介绍。 */
+    val CATALOG: List<Map<String, Any?>> = DEF.map {
+        linkedMapOf<String, Any?>("name" to it.first, "group" to it.second, "desc" to it.third)
     }
 
-    /** 默认打开：只读、文件、系统、网络、脚本；包管理默认关（第一次用 apt 会慢且要联网）。 */
+    /** 安全模式下整组锁死、不可打开的组。 */
+    val SAFE_LOCKED_GROUPS: Set<String> = setOf("packages", "script")
+
+    /** 危险到安全模式不该默认开的单条命令（可手动开，但默认关）。 */
+    private val SAFE_OFF: Set<String> = setOf(
+        "rm", "rmdir", "chmod", "chown", "truncate", "ln", "mv",
+        "am", "pm", "input", "settings", "svc", "wm", "curl",
+    )
+
+    /** 安全模式默认打开：只读全开，文件类只留只读性的，系统类关掉能改状态的。 */
+    val SAFE_DEFAULT: Set<String> = CATALOG
+        .filter { it["group"] !in SAFE_LOCKED_GROUPS }
+        .map { it["name"] as String }
+        .filter { it !in SAFE_OFF }
+        .toSet()
+
+    /** 高危模式默认：除包管理外全开（第一次 apt 要联网下载，默认关）。 */
     val DEFAULT_ALLOWED: Set<String> = CATALOG
         .filter { it["group"] != "packages" }
         .map { it["name"] as String }

@@ -37,6 +37,7 @@ import '../features/permission_page.dart';
 import '../onboarding/api_key_page.dart' show maskApiKey;
 import '../pets/pet_settings_page.dart';
 import '../phone/phone_control_screen.dart';
+import '../phone/shell_permissions_page.dart';
 import '../plugins/plugins_screen.dart';
 import '../plugins/seats/plugin_settings_tiles.dart';
 import '../plugins/seats/seat_probe.dart';
@@ -172,6 +173,13 @@ class SettingsScreen extends ConsumerWidget {
               spot: SettingsIndex.entry(SettingsPageId.phone),
               value: text(phoneValue, color: phoneValue == l10n.hubValueOneStep ? colors.warning : null),
               onTap: () => _push(context, const PhoneControlScreen()),
+            ),
+            SettingsTile(
+              icon: Icons.terminal,
+              tint: SettingsHues.abilities,
+              title: '终端权限',
+              value: Text(_shellTier(phone.status.shell.mode)),
+              onTap: () => _push(context, const ShellPermissionsPage()),
             ),
             SettingsTile(
               icon: AppIcons.webSearch,
@@ -473,4 +481,10 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
       ),
     );
   }
+
+String _shellTier(String mode) => switch (mode) {
+  'safe' => '安全模式',
+  'full' => '高危模式',
+  _ => '原版模式',
+};
 }
