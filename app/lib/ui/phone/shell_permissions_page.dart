@@ -158,7 +158,8 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
     final allowed = _allowed ?? shell.allowed.toSet();
     // 刚切档、服务端 status 还没回来时，别拿旧档位留下的 sdcardAllowed 顶包
     // （高危恒开，切回进阶会先显示开、1.5 秒后再关，闪一下）。
-    final pendingMode = _mode != null;
+    // 服务端确认（shell.mode == _mode）之前才算「切档中」，否则一直卡在 false 上。
+    final pendingMode = _mode != null && shell.mode != _mode;
     final sdcard = _sdcard ?? (mode == 'full' ? true : (pendingMode ? false : shell.sdcardAllowed));
     final isOriginal = mode == 'original';
     final isSafe = mode == 'safe';
