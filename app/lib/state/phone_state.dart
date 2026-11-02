@@ -200,6 +200,9 @@ class PhoneController extends Notifier<PhoneState> {
           shell: _copyShell(state.status.shell, mode: mode),
         ),
       );
+      // 切档会影响 sdcardAllowed（高危恒开）、allowed 的默认值，
+      // 乐观值只保证按钮立刻响应，这里再拉一次服务端真值兜底。
+      unawaited(refreshStatus());
     }
     return ok;
   }
