@@ -287,30 +287,27 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
         SettingsTile(
           title: '整组开关',
           subtitle: locked ? '安全模式下这一组锁死，切到高危才能用' : group.desc,
-          onTap: locked
-              ? null
-              : () {
-                  FocusScope.of(context).unfocus();
-                  _toggleGroup(shell, group.id, !on);
-                },
+          // 点整行 = 展开这一组；总开关在右边的 Switch 上，两个互不干扰。
+          onTap: () => setState(() {
+            if (open) {
+              _expanded.remove(group.id);
+            } else {
+              _expanded.add(group.id);
+            }
+          }),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Icon(
+                open ? Icons.expand_less : Icons.expand_more,
+                size: 20,
+                color: Theme.of(context).colorScheme.outline,
+              ),
               Switch(
                 value: locked ? false : on,
                 onChanged: locked ? null : (v) => _toggleGroup(shell, group.id, v),
               ),
-              IconButton(
-                tooltip: open ? '收起' : '展开',
-                icon: Icon(open ? Icons.expand_less : Icons.expand_more),
-                onPressed: () => setState(() {
-                  if (open) {
-                    _expanded.remove(group.id);
-                  } else {
-                    _expanded.add(group.id);
-                  }
-                }),
-              ),
+
             ],
           ),
         ),
