@@ -66,8 +66,12 @@ object ShellGuard {
     private val SDCARD_ROOTS = listOf("/sdcard/", "/storage/emulated/0/")
 
     /** 会改文件的命令：目标必须落在 [SAFE_ROOTS]。 */
+    /** 命令替换：$( )、${ }、反引号。能把任意命令藏进参数。 */
+    private val SUBST = Regex("""\$\(|\$\{|`""")
+
     private val WRITE_CMDS = setOf(
         "rm", "mv", "cp", "mkdir", "rmdir", "touch", "chmod", "chown", "ln", "tee", "truncate",
+        "sed", "awk",
     )
 
     /** 相册/视频目录：可读可写，但不可删、不可覆盖已有文件。 */
@@ -89,6 +93,14 @@ object ShellGuard {
 
         // 高危：命令、路径全放开。用户已经明确选了这个档位。
         if (mode == ShellMode.FULL) return ShellVerdict.Allow
+
+        // 命令替换能把任意命令藏进参数里（$(pm uninstall ...)），这里一律不接受。
+        // 正经用法用不到它；确实要跑脚本，请切到高危模式。
+        if (SUBST.containsMatchIn(cmd)) {
+            return ShellVerdict.Deny(
+                "命令里有 \$(...)、\${...} 或反引号——它们能把别的命令藏起来绕开检查，进阶模式下不允许。要跑这种命令请切到高危模式。",
+            )
+        }
 
         for (seg in split(cmd)) {
             val word = firstWord(seg) ?: continue
@@ -121,6 +133,20 @@ object ShellGuard {
                 ) {
                     return ShellVerdict.Deny(
                         "「$word」碰到了 $p。要让 AI 读写整个 /sdcard，去 设置 → 终端权限 → 额外设置 里打开「允许读写整个 /sdcard」。",
+                    )
+                }
+            }
+
+            // 重定向目标也是一次写入：`echo x > /path` 的 /path 必须过同样的检查，
+            // 否则它能把相册覆盖保护、sdcard 开关全绕过去。
+            for (p in redirectTargets(seg)) {
+                if (!p.startsWith("/")) continue
+                if (!inSafeRoot(p, sdcardOn)) {
+                    return ShellVerdict.Deny(outOfScope(word, p, sdcardOn))
+                }
+                if (inPhoto(p) && java.io.File(p).exists()) {
+                    return ShellVerdict.Deny(
+                        "「$p」已经存在，覆盖它会毁掉原文件，进阶模式下不允许。",
                     )
                 }
             }
@@ -160,7 +186,7 @@ object ShellGuard {
 
     /** 按 `;` `&&` `||` `|` 拆段；每段都要单独过白名单。 */
     private fun split(cmd: String): List<String> =
-        cmd.split(Regex("""(?:\|\||&&|;|\|(?!\|))"""))
+        cmd.split(Regex("""(?:\|\||&&|;|\|(?!\|)|\r?\n)"""))
             .map { it.trim() }
             .filter { it.isNotEmpty() }
 
@@ -174,6 +200,8 @@ object ShellGuard {
     /** 系统分区 / 别的 App 数据：不管开没开 sdcard 都不许碰。 */
     private fun forbidden(p: String, sdcardOn: Boolean = false): String? {
         val withSlash = if (p.endsWith("/")) p else "$p/"
+        // App 自己的私有目录永远放行（FORBIDDEN 里的 /data/data/ 不能一刀切到它头上）。
+        if (APP_PRIVATE.any { withSlash.startsWith(it) }) return null
         for (f in FORBIDDEN) {
             if (withSlash != f && !withSlash.startsWith(f)) continue
             // 开了「允许读写 sdcard」后，/sdcard 下的目录交给 inSafeRoot + 相册规则判断，
@@ -185,8 +213,14 @@ object ShellGuard {
     }
 
     /** 参数里的绝对路径，跳过重定向符号（`2>&1`、`>`、`>>`）。 */
+    /** `> path`、`>> path`、`>/path` 的目标（相对路径交给调用方跳过）。 */
+    private fun redirectTargets(seg: String): List<String> =
+        Regex("""(?:^|[^>])>>?\s*([^\s;&|]+)""").findAll(seg)
+            .map { it.groupValues[1].trim('\'', '"') }
+            .toList()
+
     private fun pathArgs(seg: String): List<String> =
-        Regex("""(?:^|\s)(/[^\s'"`()|;&<>]+)""").findAll(seg.replace(Regex("""\d?>>?\s*\S+"""), " "))
+        Regex("""(?:^|[\s>])(/[^\s'"`()|;&<>]+)""").findAll(seg)
             .map { it.groupValues[1] }
             .toList()
 
