@@ -156,7 +156,10 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
     final shell = ref.watch(phoneProvider.select((s) => s.status.shell));
     final mode = _mode ?? shell.mode;
     final allowed = _allowed ?? shell.allowed.toSet();
-    final sdcard = _sdcard ?? shell.sdcardAllowed;
+    // 刚切档、服务端 status 还没回来时，别拿旧档位留下的 sdcardAllowed 顶包
+    // （高危恒开，切回进阶会先显示开、1.5 秒后再关，闪一下）。
+    final pendingMode = _mode != null;
+    final sdcard = _sdcard ?? (mode == 'full' ? true : (pendingMode ? false : shell.sdcardAllowed));
     final isOriginal = mode == 'original';
     final isSafe = mode == 'safe';
     final isFull = mode == 'full';
@@ -183,7 +186,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
               onTap: () => _pickMode(shell, 'original'),
             ),
             _TierTile(
-              label: '安全模式',
+              label: '进阶模式',
               tone: Colors.amber,
               selected: isSafe,
               summary: '只跑你勾选的命令：能读文件、看状态、复制；脚本和包管理锁死。',
@@ -262,7 +265,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
     Set<String> allowed,
     bool isSafe,
   ) {
-    // 安全模式：包管理和脚本整组锁死，不可勾选。
+    // 进阶模式：包管理和脚本整组锁死，不可勾选。
     final locked = isSafe && (group.id == 'packages' || group.id == 'script');
     final on = group.commands.every((c) => allowed.contains(c.name));
     final open = _expanded.contains(group.id);
@@ -272,7 +275,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
       children: [
         SettingsTile(
           title: '整组开关',
-          subtitle: locked ? '安全模式下这一组锁死，切到高危才能用' : group.desc,
+          subtitle: locked ? '进阶模式下这一组锁死，切到高危才能用' : group.desc,
           // 点整行 = 展开这一组；总开关在右边的 Switch 上，两个互不干扰。
           onTap: () => setState(() {
             if (open) {
