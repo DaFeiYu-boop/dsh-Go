@@ -1,5 +1,5 @@
 // 输入条上方的终端权限胶囊：显示当前档位，点一下进设置。
-// 原版灰 / 安全黄 / 高危红——危险档位不该安安静静待在那儿。
+// 原版灰 / 进阶黄 / 高危红——危险档位不该安安静静待在那儿。
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +10,7 @@ import '../../theme/theme.dart';
 import 'dock_pill.dart';
 
 /// 「▣ 启用终端                  点击设置」
-/// 「▣ 终端 · 安全               点击设置」
+/// 「▣ 终端 · 进阶               点击设置」
 /// 「▣ 终端 · 高危               点击设置」
 class RootPill extends ConsumerWidget {
   const RootPill({super.key});
@@ -21,7 +21,7 @@ class RootPill extends ConsumerWidget {
     final theme = Theme.of(context);
     final dsh = DshColors.of(context);
     final (label, color, icon) = switch (shell.mode) {
-      'safe' => ('终端 · 安全', Colors.amber.shade700, Icons.shield_outlined),
+      'safe' => ('终端 · 进阶', Colors.amber.shade700, Icons.shield_outlined),
       'full' => ('终端 · 高危', Colors.red.shade600, Icons.terminal),
       _ => ('启用终端', theme.colorScheme.onSurfaceVariant, Icons.terminal_outlined),
     };
