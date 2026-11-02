@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../state/chat_state.dart';
 import '../../../state/goal_dock_state.dart';
 import 'dock_pill.dart';
+import 'root_pill.dart';
 import 'goal_bar.dart';
 import 'goal_sheet.dart';
 import 'todo_bar.dart';
@@ -69,4 +70,14 @@ class GoalDockSlot extends ConsumerWidget {
       child: goal == null ? null : GoalBar(goal: goal, onTap: () => runGoalActions(context, ref, sessionId)),
     );
   }
+}
+
+
+/// 输入条上方的终端权限胶囊（原版/安全/高危，点一下进设置）。
+class RootDockSlot extends ConsumerWidget {
+  const RootDockSlot({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      const DockSlot(key: ValueKey('root'), child: RootPill());
 }

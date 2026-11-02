@@ -389,6 +389,7 @@ class PhoneStatus {
     this.background = const PhoneBackgroundStatus(),
     this.task = const PhoneTaskStatus(),
     this.device = const PhoneDevice(),
+    this.shell = const PhoneShellStatus(),
   });
 
   /// The native module isn't there (or failed to answer): "未就绪".
@@ -403,7 +404,8 @@ class PhoneStatus {
       confirmationNotifications = null,
       background = const PhoneBackgroundStatus(),
       task = const PhoneTaskStatus(),
-      device = const PhoneDevice();
+      device = const PhoneDevice(),
+      shell = const PhoneShellStatus();
 
   factory PhoneStatus.fromMap(Map<Object?, Object?> m) => PhoneStatus(
     enabled: _flag(m['enabled']),
@@ -416,6 +418,7 @@ class PhoneStatus {
     background: PhoneBackgroundStatus.fromMap(_map(m['background'])),
     task: PhoneTaskStatus.fromMap(_map(m['task'])),
     device: PhoneDevice.fromMap(_map(m['device'])),
+    shell: PhoneShellStatus.fromMap(_map(m['shell'])),
   );
 
   /// The native side answered. False → everything else is a default.
@@ -441,7 +444,10 @@ class PhoneStatus {
   final PhoneTaskStatus task;
   final PhoneDevice device;
 
-  PhoneStatus copyWith({bool? enabled}) => PhoneStatus(
+  /// 终端权限：档位、允许的命令、脚本确认状态。
+  final PhoneShellStatus shell;
+
+  PhoneStatus copyWith({bool? enabled, PhoneShellStatus? shell}) => PhoneStatus(
     ready: ready,
     error: error,
     enabled: enabled ?? this.enabled,
@@ -454,6 +460,7 @@ class PhoneStatus {
     background: background,
     task: task,
     device: device,
+    shell: shell ?? this.shell,
   );
 }
 
@@ -937,6 +944,15 @@ class PhoneChannel {
 
   Future<bool> setEnabled(bool enabled) => _bool('setEnabled', {'enabled': enabled});
 
+  /// 终端权限档位：original / safe / full。
+  Future<bool> setShellMode(String mode) => _bool('setShellMode', {'mode': mode});
+
+  Future<bool> setAllowedCommands(List<String> commands) =>
+      _bool('setAllowedCommands', {'commands': commands});
+
+  Future<bool> setScriptConfirmBypass(bool on) =>
+      _bool('setScriptConfirmBypass', {'on': on});
+
   Future<bool> openAccessibilitySettings() => _bool('openAccessibilitySettings');
 
   Future<PhoneResult> grantSecureSettings() => _result('grantSecureSettings');
@@ -1126,4 +1142,55 @@ class PhoneChannel {
       return PhoneResult(false, e.message ?? e.code);
     }
   }
+}
+
+// ── 终端权限 ─────────────────────────────────────────────────────────────────
+
+/// `status()['shell']`：终端权限的三档 + 允许的命令 + 脚本确认状态。
+class PhoneShellStatus {
+  const PhoneShellStatus({
+    this.mode = 'original',
+    this.allowed = const <String>[],
+    this.scriptConfirmBypass = false,
+    this.commands = const <PhoneShellCommand>[],
+  });
+
+  factory PhoneShellStatus.fromMap(Map<Object?, Object?> m) => PhoneShellStatus(
+    mode: (m['mode'] as String?) ?? 'original',
+    allowed:
+        (m['allowed'] as List?)?.whereType<String>().toList(growable: false) ??
+        const <String>[],
+    scriptConfirmBypass: m['scriptConfirmBypass'] == true,
+    commands:
+        (m['commands'] as List?)
+            ?.whereType<Map>()
+            .map((e) => PhoneShellCommand.fromMap(e))
+            .toList(growable: false) ??
+        const <PhoneShellCommand>[],
+  );
+
+  /// original / safe / full。
+  final String mode;
+
+  /// 安全模式下用户勾选的命令名。
+  final List<String> allowed;
+  final bool scriptConfirmBypass;
+  final List<PhoneShellCommand> commands;
+
+  bool get isOriginal => mode == 'original';
+  bool get isFull => mode == 'full';
+  bool isAllowed(String name) => allowed.contains(name);
+}
+
+/// 命令清单里的一条：名字 + 分组。
+class PhoneShellCommand {
+  const PhoneShellCommand(this.name, this.group);
+
+  factory PhoneShellCommand.fromMap(Map m) =>
+      PhoneShellCommand((m['name'] as String?) ?? '', (m['group'] as String?) ?? '');
+
+  final String name;
+
+  /// read / file / system / network / packages / script。
+  final String group;
 }
