@@ -10,7 +10,7 @@
 
 ---
 
-# DSH Go（个人 fork · 含 root shell 工具）
+# DSH Go（个人 fork · 含三档终端权限）
 
 把 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 装进口袋：在手机上运行 DSH 引擎与 Ubuntu 环境，通过聊天界面使用 AI。
 
