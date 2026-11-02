@@ -79,7 +79,16 @@ object ShellGuard {
     ): ShellVerdict {
         val cmd = command.trim()
         if (cmd.isEmpty()) return ShellVerdict.Deny("命令是空的。")
-        if (mode == ShellMode.FULL) return ShellVerdict.Allow
+        if (mode == ShellMode.FULL) {
+            // 高危放开的是「命令白名单」，不是「任何路径」：
+            // 系统分区和别的 App 的数据仍然不许碰，避免一条命令把机器搞成砖。
+            hitsForbidden(cmd)?.let {
+                return ShellVerdict.Deny(
+                    "这条命令碰到受保护的位置：$it。高危模式也不允许——要改系统分区请用电脑线刷。",
+                )
+            }
+            return ShellVerdict.Allow
+        }
 
         hitsForbidden(cmd)?.let {
             return ShellVerdict.Deny("这条命令碰到受保护的位置：$it。安全模式下不允许。")
