@@ -364,7 +364,7 @@ class _TierTile extends StatelessWidget {
       onTap: onTap,
       trailing: Icon(
         selected ? Icons.check_circle : Icons.radio_button_unchecked,
-        color: selected ? tone.shade600 : scheme.outlineVariant,
+        color: selected ? tone : scheme.outlineVariant,
       ),
     );
   }

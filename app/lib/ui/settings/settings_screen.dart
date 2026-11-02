@@ -178,7 +178,11 @@ class SettingsScreen extends ConsumerWidget {
               icon: Icons.terminal,
               tint: SettingsHues.abilities,
               title: '终端权限',
-              value: Text(_shellTier(phone.status.shell.mode)),
+              value: Text(switch (phone.status.shell.mode) {
+                'safe' => '安全模式',
+                'full' => '高危模式',
+                _ => '原版模式',
+              }),
               onTap: () => _push(context, const ShellPermissionsPage()),
             ),
             SettingsTile(
@@ -482,9 +486,4 @@ class _SettingsOverviewState extends ConsumerState<SettingsOverview> {
     );
   }
 
-String _shellTier(String mode) => switch (mode) {
-  'safe' => '安全模式',
-  'full' => '高危模式',
-  _ => '原版模式',
-};
 }
