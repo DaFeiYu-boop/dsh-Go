@@ -13,7 +13,10 @@ import 'dock_pill.dart';
 /// 「▣ 终端 · 进阶               点击设置」
 /// 「▣ 终端 · 高危               点击设置」
 class RootPill extends ConsumerWidget {
-  const RootPill({super.key});
+  const RootPill({super.key, this.compact = false});
+
+  /// 生成回复期间改用圆形图标：文字太长会把「完全权限」挤出屏幕。
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,6 +28,25 @@ class RootPill extends ConsumerWidget {
       'full' => ('终端 · 高危', Colors.red.shade600, Icons.terminal),
       _ => ('启用终端', theme.colorScheme.onSurfaceVariant, Icons.terminal_outlined),
     };
+    if (compact) {
+      return Semantics(
+        button: true,
+        label: '$label，点击设置终端权限',
+        onTap: () => _open(context),
+        excludeSemantics: true,
+        child: GlassSurface(
+          tier: GlassTier.chrome,
+          borderRadius: BorderRadius.circular(DockMetrics.radius),
+          grouped: true,
+          onTap: () => _open(context),
+          child: SizedBox(
+            width: DockMetrics.height,
+            height: DockMetrics.height,
+            child: Center(child: DockGlyph.icon(icon, color: color)),
+          ),
+        ),
+      );
+    }
     return Semantics(
       button: true,
       label: '$label，点击设置终端权限',
