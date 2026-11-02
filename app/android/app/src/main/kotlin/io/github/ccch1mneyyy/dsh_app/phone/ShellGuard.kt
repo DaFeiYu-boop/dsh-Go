@@ -93,14 +93,20 @@ object ShellGuard {
                     "「$word」在安全模式下永久不可用：它可能损坏分区或系统。要跑它请切到高危模式。",
                 )
             }
+            if (word !in allowed) {
+                val group = ShellCommands.groupOf(word)
+                val locked = mode == ShellMode.SAFE && group != null && group in ShellCommands.SAFE_LOCKED_GROUPS
+                return ShellVerdict.Deny(
+                    if (locked) {
+                        "「$word」属于「${ShellCommands.groupTitle(group!!)}」，安全模式下整组锁死，切到高危模式才能用。"
+                    } else {
+                        "「$word」没有在当前档位开启。去 设置 → 终端权限 → 额外设置 里打开。"
+                    },
+                )
+            }
             if (word in SCRIPTS) {
                 scriptArg = scriptArg ?: seg
                 continue
-            }
-            if (word !in allowed) {
-                return ShellVerdict.Deny(
-                    "「$word」没有在当前档位开启。去 设置 → 手机终端 → 额外设置 里打开。",
-                )
             }
             if (word in WRITE_CMDS) {
                 val targets = if (word == "cp" || word == "mv" || word == "ln") {
@@ -111,7 +117,7 @@ object ShellGuard {
                 for (p in targets) {
                     if (!inSafeRoot(p, sdcardOn)) {
                         return ShellVerdict.Deny(
-                            "「$word」只能改 /sdcard/Download、/sdcard/Android/data、/data/local/tmp 里的东西，这一条碰到了 $p。",
+                            "「$word」只能改 Download、/data/local/tmp、App 私有目录（开了「整个手机存储」后含 /sdcard）里的东西，这一条碰到了 $p。",
                         )
                     }
                 }
@@ -120,7 +126,7 @@ object ShellGuard {
                     for (p in plainArgs(seg)) {
                         if (!p.startsWith("/") || !inSafeRoot(p, sdcardOn)) {
                             return ShellVerdict.Deny(
-                                "rm 只能删绝对路径，而且必须在上面的三个目录里。$p 不符合。",                            )
+                                "rm 只能删绝对路径，而且必须在允许的目录里。$p 不符合。",                            )
                         }
                     }
                 }
@@ -133,15 +139,9 @@ object ShellGuard {
             }
         }
 
-        val needsConfirm = scriptArg != null
-        return if (needsConfirm && !scriptConfirmBypass) {
-            ShellVerdict.Confirm(
-                "这条命令会执行脚本，脚本里可以写任何东西。看清楚再放行。",
-                scriptArg,
-            )
-        } else {
-            ShellVerdict.Allow
-        }
+        // 脚本不再逐条弹确认：能不能跑由「脚本执行」那一组开关决定，
+        // 打开它本身就是用户的一次授权。
+        return ShellVerdict.Allow
     }
 
     /** 按 `;` `&&` `||` `|` 拆段；每段都要单独过白名单。 */
@@ -306,6 +306,10 @@ object ShellCommands {
         .map { it["name"] as String }
         .filter { it !in SAFE_OFF }
         .toSet()
+
+    fun groupOf(name: String): String? = CATALOG.firstOrNull { it["name"] == name }?.get("group") as String?
+
+    fun groupTitle(id: String): String = GROUPS.firstOrNull { it["id"] == id }?.get("title") ?: id
 
     /** 高危模式默认：除包管理外全开（第一次 apt 要联网下载，默认关）。 */
     val DEFAULT_ALLOWED: Set<String> = CATALOG
