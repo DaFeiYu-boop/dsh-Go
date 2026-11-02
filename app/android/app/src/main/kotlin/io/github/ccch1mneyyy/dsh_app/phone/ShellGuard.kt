@@ -231,6 +231,8 @@ object ShellGuard {
         } catch (_: Exception) {
             return false
         }
+        // 黑洞设备：写进去什么都不会发生，`2>/dev/null` 是最常见的写法，放行。
+        if (norm == "/dev/null") return true
         val withSlash = if (norm.endsWith("/")) norm else "$norm/"
         if (sdcardOn && SDCARD_ROOTS.any { withSlash.startsWith(it) }) return true
         return BASE_ROOTS.any { withSlash.startsWith(it) }
@@ -249,7 +251,7 @@ object ShellGuard {
 
     /** 拒绝时说清「去哪开」。 */
     private fun outOfScope(word: String, p: String, sdcardOn: Boolean): String =
-        if (!sdcardOn) {
+        if (!sdcardOn && (p.startsWith("/sdcard") || p.startsWith("/storage/emulated/0"))) {
             "「$word」只能改 Download 和 /data/local/tmp，这一条碰到了 $p。" +
                 "要让 AI 读写整个 /sdcard，去 设置 → 终端权限 → 额外设置 里打开「允许读写整个 /sdcard」。"
         } else {
