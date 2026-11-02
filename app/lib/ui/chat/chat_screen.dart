@@ -1804,7 +1804,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                               children: [
                                                 const RootPill(),
                                                 const SizedBox(width: 6),
-                                                _stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false),
+                                                _stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false) ??
+                                                    const SizedBox.shrink(),
                                               ],
                                             )
                                           : null,
