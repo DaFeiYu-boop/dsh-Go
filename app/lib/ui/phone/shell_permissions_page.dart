@@ -131,7 +131,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
       final ok = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('允许读写整个手机存储？'),
+          title: const Text('允许读写整个 /sdcard？'),
           content: const Text(
             '/sdcard 里除了 Download，还有照片（DCIM）、别的 App 的文件夹。\n\n'
             '打开之后 AI 就能动这些地方，删掉的东西没有回收站。\n'
