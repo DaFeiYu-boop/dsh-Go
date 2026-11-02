@@ -123,11 +123,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
 
   /// 300ms 内的连续点击合并成一次写入。
   void _scheduleFlush(Future<void> Function() run) {
-    final previous = _flush;
-    _flush = Future<void>.delayed(const Duration(milliseconds: 300), () async {
-      await previous;
-      await run();
-    });
+    _flush = run();
   }
 
   Future<void> _toggleSdcard(PhoneShellStatus shell, bool on) async {
@@ -163,6 +159,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
     final sdcard = _sdcard ?? shell.sdcardAllowed;
     final isOriginal = mode == 'original';
     final isSafe = mode == 'safe';
+    final isFull = mode == 'full';
 
     // 档位一变，本地乐观副本就作废，以服务端为准。
     if (_mode != null && shell.mode == _mode) {
@@ -211,41 +208,19 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
                 value: _showCommands,
                 onChanged: _setShowCommands,
               ),
-              SettingsSwitchTile(
-                title: '允许读写整个 /sdcard',
-                subtitle: sdcard ? '已允许：包括照片和别的 App 的文件夹' : '未允许：只能写 Download',
-                value: sdcard,
-                onChanged: (v) => _toggleSdcard(shell, v),
-              ),
-              if (isSafe)
+              if (!isFull)
                 SettingsSwitchTile(
-                  title: '后续脚本无需确认',
-                  subtitle: '正常情况下每次跑脚本都要你点头',
-                  value: shell.scriptConfirmBypass,
-                  onChanged: (v) async {
-                    if (v) {
-                      final ok = await showDialog<bool>(
-                        context: context,
-                        builder: (ctx) => AlertDialog(
-                          title: const Text('以后跑脚本不再问？'),
-                          content: const Text('脚本里的内容不受命令白名单约束，等于把这一层打开了。'),
-                          actions: [
-                            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-                            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('确认')),
-                          ],
-                        ),
-                      );
-                      if (ok != true) return;
-                    }
-                    await ref.read(phoneProvider.notifier).setScriptConfirmBypass(v);
-                  },
+                  title: '允许读写整个 /sdcard',
+                  subtitle: sdcard ? '已允许：包括照片和别的 App 的文件夹（相册只能读和新建，不能删）' : '未允许：只能写 Download',
+                  value: sdcard,
+                  onChanged: (v) => _toggleSdcard(shell, v),
                 ),
             ],
           ),
           if (_showCommands)
             for (final group in _groups(shell))
               _groupSection(shell, group, allowed, isSafe),
-          _RecentSection(limit: 200),
+          _RecentSection(limit: 100),
         ],
       ],
     );

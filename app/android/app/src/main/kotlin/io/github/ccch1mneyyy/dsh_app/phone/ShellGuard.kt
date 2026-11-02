@@ -70,72 +70,73 @@ object ShellGuard {
         "rm", "mv", "cp", "mkdir", "rmdir", "touch", "chmod", "chown", "ln", "tee", "truncate",
     )
 
+    /** 相册/视频目录：可读可写，但不可删、不可覆盖已有文件。 */
+    private val PHOTO_DIRS = listOf(
+        "/sdcard/DCIM/", "/storage/emulated/0/DCIM/",
+        "/sdcard/Pictures/", "/storage/emulated/0/Pictures/",
+        "/sdcard/Movies/", "/storage/emulated/0/Movies/",
+        "/sdcard/Android/media/", "/storage/emulated/0/Android/media/",
+    )
+
     fun judge(
         mode: ShellMode,
         command: String,
         allowed: Set<String>,
-        scriptConfirmBypass: Boolean,
         sdcardOn: Boolean = false,
     ): ShellVerdict {
         val cmd = command.trim()
         if (cmd.isEmpty()) return ShellVerdict.Deny("命令是空的。")
-        if (mode == ShellMode.FULL) {
-            // 高危放开的是「命令白名单」，不是「任何路径」：
-            // 系统分区和别的 App 的数据仍然不许碰，避免一条命令把机器搞成砖。
-            hitsForbidden(cmd)?.let {
-                return ShellVerdict.Deny(
-                    "这条命令碰到受保护的位置：$it。高危模式也不允许——要改系统分区请用电脑线刷。",
-                )
-            }
-            return ShellVerdict.Allow
-        }
 
-        hitsForbidden(cmd)?.let {
-            return ShellVerdict.Deny("这条命令碰到受保护的位置：$it。安全模式下不允许。")
-        }
+        // 高危：命令、路径全放开。用户已经明确选了这个档位。
+        if (mode == ShellMode.FULL) return ShellVerdict.Allow
 
-        var scriptArg: String? = null
         for (seg in split(cmd)) {
             val word = firstWord(seg) ?: continue
+
+            // 整组锁死：不管 allowed 里有没有，安全模式一律拒绝。
+            val group = ShellCommands.groupOf(word)
+            if (group != null && group in ShellCommands.SAFE_LOCKED_GROUPS) {
+                return ShellVerdict.Deny(
+                    "「$word」属于「${ShellCommands.groupTitle(group)}」，安全模式下整组锁死，切到高危模式才能用。",
+                )
+            }
             if (word in LOCKED) {
                 return ShellVerdict.Deny(
-                    "「$word」在安全模式下永久不可用：它可能损坏分区或系统。要跑它请切到高危模式。",
+                    "「$word」可能损坏分区或系统，安全模式下不可用。要跑它请切到高危模式。",
                 )
             }
             if (word !in allowed) {
-                val group = ShellCommands.groupOf(word)
-                val locked = mode == ShellMode.SAFE && group != null && group in ShellCommands.SAFE_LOCKED_GROUPS
                 return ShellVerdict.Deny(
-                    if (locked) {
-                        "「$word」属于「${ShellCommands.groupTitle(group!!)}」，安全模式下整组锁死，切到高危模式才能用。"
-                    } else {
-                        "「$word」没有在当前档位开启。去 设置 → 终端权限 → 额外设置 里打开。"
-                    },
+                    "「$word」没有在当前档位开启。去 设置 → 终端权限 里的命令清单把它打开。",
                 )
             }
-            if (word in SCRIPTS) {
-                scriptArg = scriptArg ?: seg
-                continue
+
+            val paths = pathArgs(seg)
+            for (p in paths) {
+                forbidden(p)?.let { hit ->
+                    return ShellVerdict.Deny("碰到受保护的位置：$hit，安全模式下不允许。")
+                }
             }
+
             if (word in WRITE_CMDS) {
-                val targets = if (word == "cp" || word == "mv" || word == "ln") {
-                    pathArgs(seg).takeLast(1)
-                } else {
-                    pathArgs(seg)
-                }
+                val targets = if (word == "cp" || word == "mv" || word == "ln") paths.takeLast(1) else paths
                 for (p in targets) {
-                    if (!inSafeRoot(p, sdcardOn)) {
-                        return ShellVerdict.Deny(
-                            "「$word」只能改 Download、/data/local/tmp、App 私有目录（开了「整个手机存储」后含 /sdcard）里的东西，这一条碰到了 $p。",
-                        )
+                    if (!p.startsWith("/")) {
+                        return ShellVerdict.Deny("「$word」的目标要写绝对路径，$p 不是。")
                     }
-                }
-                // rm 的相对路径等于「不知道删的是哪」，直接拒绝。
-                if (word == "rm") {
-                    for (p in plainArgs(seg)) {
-                        if (!p.startsWith("/") || !inSafeRoot(p, sdcardOn)) {
+                    if (!inSafeRoot(p, sdcardOn)) {
+                        return ShellVerdict.Deny(outOfScope(word, p, sdcardOn))
+                    }
+                    if (inPhoto(p)) {
+                        if (word == "rm" || word == "rmdir" || word == "mv") {
                             return ShellVerdict.Deny(
-                                "rm 只能删绝对路径，而且必须在允许的目录里。$p 不符合。",                            )
+                                "「$p」在相册/视频目录里，删了或移走就没有了，安全模式下不允许。要动它请切到高危模式。",
+                            )
+                        }
+                        if (word != "mkdir" && java.io.File(p).exists()) {
+                            return ShellVerdict.Deny(
+                                "「$p」已经存在，覆盖它会毁掉原文件，安全模式下不允许。",
+                            )
                         }
                     }
                 }
@@ -147,9 +148,6 @@ object ShellGuard {
                 return ShellVerdict.Deny("pm clear 会清掉一个 App 的全部数据，安全模式下不可用。")
             }
         }
-
-        // 脚本不再逐条弹确认：能不能跑由「脚本执行」那一组开关决定，
-        // 打开它本身就是用户的一次授权。
         return ShellVerdict.Allow
     }
 
@@ -166,28 +164,20 @@ object ShellGuard {
         return w.ifEmpty { null }
     }
 
-    /** 命令里出现的绝对路径，有没有落在受保护区。 */
-    private fun hitsForbidden(cmd: String): String? {
-        for (m in Regex("""/[^\s'"`()|;&<>]+""").findAll(cmd)) {
-            val t = m.value
-            val p = if (t.endsWith("/")) t else "$t/"
-            if (APP_PRIVATE.any { p.startsWith(it) }) continue
-            for (f in FORBIDDEN) {
-                if (p == f || p.startsWith(f)) return t
-            }
+    /** 系统分区 / 别的 App 数据：不管开没开 sdcard 都不许碰。 */
+    private fun forbidden(p: String): String? {
+        val withSlash = if (p.endsWith("/")) p else "$p/"
+        for (f in FORBIDDEN) {
+            if (withSlash == f || withSlash.startsWith(f)) return p
         }
         return null
     }
 
-    /** 参数里的绝对路径。 */
+    /** 参数里的绝对路径，跳过重定向符号（`2>&1`、`>`、`>>`）。 */
     private fun pathArgs(seg: String): List<String> =
-        Regex("""(?:^|\s)(/[^\s'"`()|;&<>]+)""").findAll(seg)
+        Regex("""(?:^|\s)(/[^\s'"`()|;&<>]+)""").findAll(seg.replace(Regex("""\d?>>?\s*\S+"""), " "))
             .map { it.groupValues[1] }
             .toList()
-
-    /** 非选项参数（不是以 - 开头的）。 */
-    private fun plainArgs(seg: String): List<String> =
-        seg.split(Regex("""\s+""")).drop(1).filter { it.isNotEmpty() && !it.startsWith("-") }
 
     /** 规范化后是否落在允许写的位置。[sdcardOn] = 用户是否确认过「整个 /sdcard」。 */
     private fun inSafeRoot(p: String, sdcardOn: Boolean): Boolean {
@@ -197,9 +187,29 @@ object ShellGuard {
             return false
         }
         val withSlash = if (norm.endsWith("/")) norm else "$norm/"
-        if (BASE_ROOTS.any { withSlash.startsWith(it) }) return true
-        return sdcardOn && SDCARD_ROOTS.any { withSlash.startsWith(it) }
+        if (sdcardOn && SDCARD_ROOTS.any { withSlash.startsWith(it) }) return true
+        return BASE_ROOTS.any { withSlash.startsWith(it) }
     }
+
+    /** 是否在相册/视频目录里。 */
+    private fun inPhoto(p: String): Boolean {
+        val norm = try {
+            java.nio.file.Paths.get(p).normalize().toString()
+        } catch (_: Exception) {
+            return false
+        }
+        val withSlash = if (norm.endsWith("/")) norm else "$norm/"
+        return PHOTO_DIRS.any { withSlash.startsWith(it) }
+    }
+
+    /** 拒绝时说清「去哪开」。 */
+    private fun outOfScope(word: String, p: String, sdcardOn: Boolean): String =
+        if (!sdcardOn) {
+            "「$word」只能改 Download 和 /data/local/tmp，这一条碰到了 $p。" +
+                "要让 AI 读写整个手机存储，去 设置 → 终端权限 → 额外设置 里打开「整个手机存储」。"
+        } else {
+            "「$word」碰到了一个不在允许范围内的位置：$p。"
+        }
 }
 
 /** 命令清单：设置页按组展示，默认值也在这里。 */

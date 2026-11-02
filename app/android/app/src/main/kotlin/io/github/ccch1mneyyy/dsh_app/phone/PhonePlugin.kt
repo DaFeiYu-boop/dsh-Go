@@ -155,10 +155,6 @@ class PhonePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandle
                 control.setSdcardAllowed(call.argument<Boolean>("on") ?: false)
                 result.success(mapOf("ok" to true))
             }
-            "setScriptConfirmBypass" -> {
-                control.setScriptConfirmBypass(call.argument<Boolean>("on") == true)
-                result.success(true)
-            }
             "openAppDetails" -> result.success(startActivity(control.appDetailsIntent()))
             "testScreen" -> async(result) { control.testScreen() }
             "setBackgroundMode" -> {

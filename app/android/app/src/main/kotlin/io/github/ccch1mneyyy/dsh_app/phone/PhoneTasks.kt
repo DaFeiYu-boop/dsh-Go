@@ -361,7 +361,7 @@ class PhoneTasks(
 }
 
 /** What the agent did, without screen contents, for the person to review. Newest last; [toMaps] lists newest first. */
-class ActionLog(private val capacity: Int = 300, private val clock: () -> Long = System::currentTimeMillis) {
+class ActionLog(private val capacity: Int = 100, private val clock: () -> Long = System::currentTimeMillis) {
     data class Entry(val time: Long, val tool: String, val app: String?, val summary: String, val decision: String)
 
     private val entries = ArrayDeque<Entry>()

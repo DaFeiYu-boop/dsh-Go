@@ -76,6 +76,7 @@ import 'composer.dart';
 import 'composer_toast.dart';
 import 'dock/chat_dock.dart';
 import 'dock/dock_stack.dart';
+import 'dock/root_pill.dart';
 import 'empty_state.dart';
 import 'empty_actions.dart';
 import 'media/generate_mode.dart';
@@ -1794,8 +1795,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                             todoProgress: ref.watch(dockFoldedProvider),
                                           ),
                                         ],
-                                        // 终端权限胶囊在「完全权限」上方，贴着输入框的是后者。
-                                        if (!readOnly) const RootDockSlot(),
                                         // It gives the activity strip its place while a reply generates.
                                         if (!readOnly) ComposerStripSlot(sessionId: sessionId, visible: !running),
                                       ],
@@ -1814,7 +1813,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                     child: NativeComposerBar(
                                       sessionId: sessionId,
                                       visible: !running,
-                                      leading: pillsInCapsules ? composerPills : null,
+                                      leading: pillsInCapsules
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const RootPill(),
+                                                if (composerPills != null) ...[
+                                                  const SizedBox(width: GenerateCapsuleMetrics.gap),
+                                                  composerPills,
+                                                ],
+                                              ],
+                                            )
+                                          : null,
                                       strip: false,
                                     ),
                                   ),

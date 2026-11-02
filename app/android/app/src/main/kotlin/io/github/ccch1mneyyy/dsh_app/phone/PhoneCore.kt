@@ -36,7 +36,6 @@ interface PhoneEnv {
     fun allowedCommands(): Set<String> = emptySet()
 
     /** 用户点过「后续脚本无需确认」。 */
-    fun scriptConfirmBypass(): Boolean = false
 
     fun cacheDir(): File? = null
 
@@ -190,7 +189,7 @@ class PhoneCore(
         val mode = env.shellMode()
         if (mode == ShellMode.ORIGINAL) {
             return Out(
-                "这个档位没有开启终端能力。请用户在 设置 → 手机终端 里切到「安全模式」或「高危模式」。",
+                "这个档位没有开启终端能力。请用户在 设置 → 终端权限 里切到「安全模式」或「高危模式」。",
                 error = true,
                 summary = PhoneToolCatalog.SHELL,
                 decision = "refused:original",
@@ -208,7 +207,7 @@ class PhoneCore(
                 summary = shellSummary,
             )
         }
-        when (val v = ShellGuard.judge(mode, command, env.allowedCommands(), env.scriptConfirmBypass(), env.sdcardAllowed())) {
+        when (val v = ShellGuard.judge(mode, command, env.allowedCommands(), env.sdcardAllowed())) {
             is ShellVerdict.Deny -> return Out(
                 v.reason,
                 error = true,

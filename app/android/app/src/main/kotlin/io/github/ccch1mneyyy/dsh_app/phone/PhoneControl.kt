@@ -446,7 +446,7 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
         "shell" to linkedMapOf(
             "mode" to shellMode().key,
             "allowed" to allowedCommands().sorted(),
-            "scriptConfirmBypass" to scriptConfirmBypass(), "sdcardAllowed" to sdcardAllowed(),
+            "sdcardAllowed" to sdcardAllowed(),
             "commands" to ShellCommands.CATALOG,
         ),
         "device" to linkedMapOf(
@@ -574,11 +574,11 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
         return prefs.getStringSet(key, null) ?: def
     }
 
-    override fun scriptConfirmBypass(): Boolean = prefs.getBoolean(K_SCRIPT_BYPASS, false)
 
     override fun cacheDir(): File? = app.cacheDir
 
-    override fun sdcardAllowed(): Boolean = prefs.getBoolean(K_SDCARD, false)
+    override fun sdcardAllowed(): Boolean =
+        shellMode() == ShellMode.FULL || prefs.getBoolean(K_SDCARD, false)
 
     fun setSdcardAllowed(on: Boolean) {
         prefs.edit().putBoolean(K_SDCARD, on).apply()
@@ -591,10 +591,6 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
     fun setAllowedCommands(cmds: Set<String>) {
         val key = if (shellMode() == ShellMode.SAFE) K_SAFE_CMDS else K_FULL_CMDS
         prefs.edit().putStringSet(key, cmds).apply()
-    }
-
-    fun setScriptConfirmBypass(on: Boolean) {
-        prefs.edit().putBoolean(K_SCRIPT_BYPASS, on).apply()
     }
 
     override fun isLocked(): Boolean {
@@ -663,7 +659,6 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
         private const val K_ENABLED = "enabled"
         private const val K_SHELL_MODE = "shell_mode"
         private const val K_ALLOWED_CMDS = "shell_allowed"
-        private const val K_SCRIPT_BYPASS = "shell_script_bypass"
     private const val K_SAFE_CMDS = "shell_safe_allowed"
     private const val K_FULL_CMDS = "shell_full_allowed"
     private const val K_SDCARD = "shell_sdcard_allowed"

@@ -216,18 +216,6 @@ class PhoneController extends Notifier<PhoneState> {
     return ok;
   }
 
-  Future<bool> setScriptConfirmBypass(bool on) async {
-    final ok = await _channel.setScriptConfirmBypass(on);
-    if (ok && ref.mounted) {
-      state = state.copyWith(
-        status: state.status.copyWith(
-          shell: _copyShell(state.status.shell, scriptConfirmBypass: on),
-        ),
-      );
-    }
-    return ok;
-  }
-
   Future<bool> setSdcardAllowed(bool on) async {
     final ok = await _channel.setSdcardAllowed(on);
     if (ok && ref.mounted) {
@@ -244,12 +232,10 @@ class PhoneController extends Notifier<PhoneState> {
     PhoneShellStatus s, {
     String? mode,
     List<String>? allowed,
-    bool? scriptConfirmBypass,
     bool? sdcardAllowed,
   }) => PhoneShellStatus(
     mode: mode ?? s.mode,
     allowed: allowed ?? s.allowed,
-    scriptConfirmBypass: scriptConfirmBypass ?? s.scriptConfirmBypass,
     sdcardAllowed: sdcardAllowed ?? s.sdcardAllowed,
     commands: s.commands,
   );

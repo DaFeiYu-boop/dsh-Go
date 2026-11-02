@@ -1154,7 +1154,6 @@ class PhoneShellStatus {
   const PhoneShellStatus({
     this.mode = 'original',
     this.allowed = const <String>[],
-    this.scriptConfirmBypass = false,
     this.sdcardAllowed = false,
     this.commands = const <PhoneShellCommand>[],
   });
@@ -1164,7 +1163,6 @@ class PhoneShellStatus {
     allowed:
         (m['allowed'] as List?)?.whereType<String>().toList(growable: false) ??
         const <String>[],
-    scriptConfirmBypass: m['scriptConfirmBypass'] == true,
     sdcardAllowed: m['sdcardAllowed'] == true,
     commands:
         (m['commands'] as List?)
@@ -1179,7 +1177,6 @@ class PhoneShellStatus {
 
   /// 安全模式下用户勾选的命令名。
   final List<String> allowed;
-  final bool scriptConfirmBypass;
   final bool sdcardAllowed;
   final List<PhoneShellCommand> commands;
 
