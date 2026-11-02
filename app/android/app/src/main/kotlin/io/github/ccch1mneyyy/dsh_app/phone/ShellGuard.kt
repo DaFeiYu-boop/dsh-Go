@@ -26,18 +26,18 @@ sealed class ShellVerdict {
 }
 
 /**
- * 安全模式的白名单判定。只做静态检查：挡得住手滑，挡不住蓄意。
+ * 进阶模式的白名单判定。只做静态检查：挡得住手滑，挡不住蓄意。
  */
 object ShellGuard {
 
-    /** 安全模式永久禁止：一旦执行就不可挽回。 */
+    /** 进阶模式永久禁止：一旦执行就不可挽回。 */
     val LOCKED = setOf(
         "dd", "mkfs", "mke2fs", "mkntfs", "mkdosfs", "fdisk", "parted", "sgdisk", "gdisk",
         "fastboot", "setenforce", "insmod", "rmmod", "modprobe", "wipe", "chroot",
         "pivot_root", "reboot", "shutdown", "halt",
     )
 
-    /** 脚本执行类：能跑任意代码，安全模式下每次确认。 */
+    /** 脚本执行类：能跑任意代码，进阶模式下每次确认。 */
     val SCRIPTS = setOf(
         "sh", "bash", "zsh", "dash", "ash", "python", "python3", "perl", "ruby",
         "node", "deno", "eval", "exec", "xargs", "source", ".",
@@ -50,7 +50,7 @@ object ShellGuard {
         "/sdcard/DCIM/", "/sdcard/Android/obb/", "/storage/emulated/0/DCIM/",
     )
 
-    /** App 自己的私有目录：只在安全模式下放行，且要躲开 [FORBIDDEN] 里的 /data/data/。 */
+    /** App 自己的私有目录：只在进阶模式下放行，且要躲开 [FORBIDDEN] 里的 /data/data/。 */
     private val APP_PRIVATE = listOf(
         "/data/user/0/io.github.ccch1mneyyy.dsh_app/",
         "/data/data/io.github.ccch1mneyyy.dsh_app/",
@@ -93,16 +93,16 @@ object ShellGuard {
         for (seg in split(cmd)) {
             val word = firstWord(seg) ?: continue
 
-            // 整组锁死：不管 allowed 里有没有，安全模式一律拒绝。
+            // 整组锁死：不管 allowed 里有没有，进阶模式一律拒绝。
             val group = ShellCommands.groupOf(word)
             if (group != null && group in ShellCommands.SAFE_LOCKED_GROUPS) {
                 return ShellVerdict.Deny(
-                    "「$word」属于「${ShellCommands.groupTitle(group)}」，安全模式下整组锁死，切到高危模式才能用。",
+                    "「$word」属于「${ShellCommands.groupTitle(group)}」，进阶模式下整组锁死，切到高危模式才能用。",
                 )
             }
             if (word in LOCKED) {
                 return ShellVerdict.Deny(
-                    "「$word」可能损坏分区或系统，安全模式下不可用。要跑它请切到高危模式。",
+                    "「$word」可能损坏分区或系统，进阶模式下不可用。要跑它请切到高危模式。",
                 )
             }
             if (word !in allowed) {
@@ -113,8 +113,15 @@ object ShellGuard {
 
             val paths = pathArgs(seg)
             for (p in paths) {
-                forbidden(p)?.let { hit ->
-                    return ShellVerdict.Deny("碰到受保护的位置：$hit，安全模式下不允许。")
+                forbidden(p, sdcardOn)?.let { hit ->
+                    return ShellVerdict.Deny("碰到受保护的位置：$hit，进阶模式下不允许。")
+                }
+                if (!sdcardOn && (p.startsWith("/sdcard/") || p.startsWith("/storage/emulated/0/")) &&
+                    !inSafeRoot(p, false)
+                ) {
+                    return ShellVerdict.Deny(
+                        "「$word」碰到了 $p。要让 AI 读写整个手机存储，去 设置 → 终端权限 → 额外设置 里打开「整个手机存储」。",
+                    )
                 }
             }
 
@@ -130,22 +137,22 @@ object ShellGuard {
                     if (inPhoto(p)) {
                         if (word == "rm" || word == "rmdir" || word == "mv") {
                             return ShellVerdict.Deny(
-                                "「$p」在相册/视频目录里，删了或移走就没有了，安全模式下不允许。要动它请切到高危模式。",
+                                "「$p」在相册/视频目录里，删了或移走就没有了，进阶模式下不允许。要动它请切到高危模式。",
                             )
                         }
                         if (word != "mkdir" && java.io.File(p).exists()) {
                             return ShellVerdict.Deny(
-                                "「$p」已经存在，覆盖它会毁掉原文件，安全模式下不允许。",
+                                "「$p」已经存在，覆盖它会毁掉原文件，进阶模式下不允许。",
                             )
                         }
                     }
                 }
             }
             if (word == "find" && Regex("""\s-(delete|exec|execdir|ok|okdir)\b""").containsMatchIn(seg)) {
-                return ShellVerdict.Deny("find 带 -delete/-exec 等于执行任意操作，安全模式下不可用。")
+                return ShellVerdict.Deny("find 带 -delete/-exec 等于执行任意操作，进阶模式下不可用。")
             }
             if (word == "pm" && Regex("""\bpm\s+clear\b""").containsMatchIn(seg)) {
-                return ShellVerdict.Deny("pm clear 会清掉一个 App 的全部数据，安全模式下不可用。")
+                return ShellVerdict.Deny("pm clear 会清掉一个 App 的全部数据，进阶模式下不可用。")
             }
         }
         return ShellVerdict.Allow
@@ -165,10 +172,14 @@ object ShellGuard {
     }
 
     /** 系统分区 / 别的 App 数据：不管开没开 sdcard 都不许碰。 */
-    private fun forbidden(p: String): String? {
+    private fun forbidden(p: String, sdcardOn: Boolean = false): String? {
         val withSlash = if (p.endsWith("/")) p else "$p/"
         for (f in FORBIDDEN) {
-            if (withSlash == f || withSlash.startsWith(f)) return p
+            if (withSlash != f && !withSlash.startsWith(f)) continue
+            // 开了「整个手机存储」后，/sdcard 下的目录交给 inSafeRoot + 相册规则判断，
+            // 不再在这里一刀切。
+            if (sdcardOn && (f.startsWith("/sdcard/") || f.startsWith("/storage/emulated/0/"))) continue
+            return p
         }
         return null
     }
@@ -226,6 +237,9 @@ object ShellCommands {
 
     /** 命令 → (分组, 一句话介绍)。 */
     private val DEF: List<Triple<String, String, String>> = listOf(
+        Triple("cd", "read", "切当前目录（只在同一条命令里有效）"),
+        Triple("pwd", "read", "打印当前目录"),
+        Triple("echo", "read", "打印一段文字"),
         Triple("ls", "read", "列出目录内容"),
         Triple("cat", "read", "输出文件内容"),
         Triple("head", "read", "看文件开头几行"),
@@ -276,7 +290,7 @@ object ShellCommands {
         Triple("sed", "file", "按规则替换文件内容"),
         Triple("awk", "file", "按列处理文本"),
         Triple("am", "system", "启动应用、发广播"),
-        Triple("pm", "system", "装/卸应用、查包名"),
+        Triple("pm", "packages", "装/卸应用、查包名"),
         Triple("input", "system", "模拟点屏幕、打字"),
         Triple("cmd", "system", "调系统命令（WiFi、电池等）"),
         Triple("settings", "system", "读改系统设置项"),
@@ -310,16 +324,16 @@ object ShellCommands {
         linkedMapOf<String, Any?>("name" to it.first, "group" to it.second, "desc" to it.third)
     }
 
-    /** 安全模式下整组锁死、不可打开的组。 */
+    /** 进阶模式下整组锁死、不可打开的组。 */
     val SAFE_LOCKED_GROUPS: Set<String> = setOf("packages", "script")
 
-    /** 危险到安全模式不该默认开的单条命令（可手动开，但默认关）。 */
+    /** 危险到进阶模式不该默认开的单条命令（可手动开，但默认关）。 */
     private val SAFE_OFF: Set<String> = setOf(
         "rm", "rmdir", "chmod", "chown", "truncate", "ln", "mv",
         "am", "pm", "input", "settings", "svc", "wm", "curl",
     )
 
-    /** 安全模式默认打开：只读全开，文件类只留只读性的，系统类关掉能改状态的。 */
+    /** 进阶模式默认打开：只读全开，文件类只留只读性的，系统类关掉能改状态的。 */
     val SAFE_DEFAULT: Set<String> = CATALOG
         .filter { it["group"] !in SAFE_LOCKED_GROUPS }
         .map { it["name"] as String }
