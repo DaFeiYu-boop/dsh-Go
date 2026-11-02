@@ -120,7 +120,7 @@ object ShellGuard {
                     !inSafeRoot(p, false)
                 ) {
                     return ShellVerdict.Deny(
-                        "「$word」碰到了 $p。要让 AI 读写整个手机存储，去 设置 → 终端权限 → 额外设置 里打开「整个手机存储」。",
+                        "「$word」碰到了 $p。要让 AI 读写 sdcard，去 设置 → 终端权限 → 额外设置 里打开「允许读写 sdcard」。",
                     )
                 }
             }
@@ -176,7 +176,7 @@ object ShellGuard {
         val withSlash = if (p.endsWith("/")) p else "$p/"
         for (f in FORBIDDEN) {
             if (withSlash != f && !withSlash.startsWith(f)) continue
-            // 开了「整个手机存储」后，/sdcard 下的目录交给 inSafeRoot + 相册规则判断，
+            // 开了「允许读写 sdcard」后，/sdcard 下的目录交给 inSafeRoot + 相册规则判断，
             // 不再在这里一刀切。
             if (sdcardOn && (f.startsWith("/sdcard/") || f.startsWith("/storage/emulated/0/"))) continue
             return p
@@ -217,7 +217,7 @@ object ShellGuard {
     private fun outOfScope(word: String, p: String, sdcardOn: Boolean): String =
         if (!sdcardOn) {
             "「$word」只能改 Download 和 /data/local/tmp，这一条碰到了 $p。" +
-                "要让 AI 读写整个手机存储，去 设置 → 终端权限 → 额外设置 里打开「整个手机存储」。"
+                "要让 AI 读写 sdcard，去 设置 → 终端权限 → 额外设置 里打开「允许读写 sdcard」。"
         } else {
             "「$word」碰到了一个不在允许范围内的位置：$p。"
         }
