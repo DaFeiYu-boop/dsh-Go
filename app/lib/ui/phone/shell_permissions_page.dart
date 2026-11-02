@@ -31,10 +31,12 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
   Set<String>? _allowed;
   bool? _sdcard;
   Future<void>? _flush;
+  late final PhoneController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = ref.read(phoneProvider.notifier);
     SharedPreferences.getInstance().then((p) {
       if (!mounted) return;
       setState(() {
@@ -42,6 +44,15 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
         _loaded = true;
       });
     });
+  }
+
+  @override
+  void dispose() {
+    // 页面一关就立刻把还没落盘的勾选写掉，别等 300ms 的合并窗口。
+    if (_flush != null && _allowed != null) {
+      _controller.setAllowedCommands(_allowed!.toList());
+    }
+    super.dispose();
   }
 
   void _setShowCommands(bool on) {
@@ -95,7 +106,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
       base.remove(name);
     }
     setState(() => _allowed = base);
-    _scheduleFlush(() => ref.read(phoneProvider.notifier).setAllowedCommands(base.toList()));
+    _scheduleFlush(() => _controller.setAllowedCommands(base.toList()));
   }
 
   void _toggleGroup(PhoneShellStatus shell, String group, bool on) {
@@ -107,7 +118,7 @@ class _ShellPermissionsPageState extends ConsumerState<ShellPermissionsPage> {
       base.removeAll(names);
     }
     setState(() => _allowed = base);
-    _scheduleFlush(() => ref.read(phoneProvider.notifier).setAllowedCommands(base.toList()));
+    _scheduleFlush(() => _controller.setAllowedCommands(base.toList()));
   }
 
   /// 300ms 内的连续点击合并成一次写入。
