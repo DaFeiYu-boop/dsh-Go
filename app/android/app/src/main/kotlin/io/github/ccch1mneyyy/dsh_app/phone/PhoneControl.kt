@@ -572,6 +572,8 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
 
     override fun scriptConfirmBypass(): Boolean = prefs.getBoolean(K_SCRIPT_BYPASS, false)
 
+    override fun cacheDir(): File? = app.cacheDir
+
     fun setShellMode(mode: ShellMode) {
         prefs.edit().putString(K_SHELL_MODE, mode.key).apply()
     }

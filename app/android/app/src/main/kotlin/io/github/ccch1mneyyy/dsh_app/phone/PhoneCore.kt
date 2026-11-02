@@ -37,6 +37,8 @@ interface PhoneEnv {
 
     /** 用户点过「后续脚本无需确认」。 */
     fun scriptConfirmBypass(): Boolean = false
+
+    fun cacheDir(): File? = null
 }
 
 /**
@@ -220,7 +222,8 @@ class PhoneCore(
         }
 
         val timeoutMs = (a.int("timeoutMs")?.toLong() ?: 20_000L).coerceIn(1_000L, 120_000L)
-        val outFile = File("/data/local/tmp/.dsh_shell_${System.nanoTime()}.out")
+        val outDir = env.cacheDir() ?: File(System.getProperty("java.io.tmpdir") ?: "/data/local/tmp")
+        val outFile = File(outDir, ".dsh_shell_${System.nanoTime()}.out")
         val proc = try {
             ProcessBuilder("su", "-c", command)
                 .redirectErrorStream(true)
