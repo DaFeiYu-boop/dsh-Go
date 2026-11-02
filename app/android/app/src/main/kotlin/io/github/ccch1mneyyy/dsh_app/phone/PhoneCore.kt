@@ -32,7 +32,7 @@ interface PhoneEnv {
     /** 终端权限的三档；默认原版（不给终端）。 */
     fun shellMode(): ShellMode = ShellMode.ORIGINAL
 
-    /** 安全模式下用户勾选的命令；空集合等于什么都不让跑。 */
+    /** 进阶模式下用户勾选的命令；空集合等于什么都不让跑。 */
     fun allowedCommands(): Set<String> = emptySet()
 
     /** 用户点过「后续脚本无需确认」。 */
@@ -189,7 +189,7 @@ class PhoneCore(
         val mode = env.shellMode()
         if (mode == ShellMode.ORIGINAL) {
             return Out(
-                "这个档位没有开启终端能力。请用户在 设置 → 终端权限 里切到「安全模式」或「高危模式」。",
+                "这个档位没有开启终端能力。请用户在 设置 → 终端权限 里切到「进阶模式」或「高危模式」。",
                 error = true,
                 summary = PhoneToolCatalog.SHELL,
                 decision = "refused:original",
