@@ -258,6 +258,13 @@ object ShellGuard {
         val withSlash = if (p.endsWith("/")) p else "$p/"
         // App 自己的私有目录永远放行（FORBIDDEN 里的 /data/data/ 不能一刀切到它头上）。
         if (APP_PRIVATE.any { withSlash.startsWith(it) }) return null
+        // /data/local/tmp 是约定的临时目录，也放行。
+        if (withSlash.startsWith("/data/local/tmp/")) return null
+        // /data 根目录整体当禁区：只留上面两个已知位置。
+        // 之前只列了 /data/adb、/data/data 这些子目录，根目录下放的文件反而漏过去了
+        //（拦了房间没拦走廊）。/sdcard 是 /storage/emulated/0 的另一个名字，
+        // 不会落到这里，所以不影响 Download。
+        if (withSlash.startsWith("/data/")) return p
         for (f in FORBIDDEN) {
             if (withSlash != f && !withSlash.startsWith(f)) continue
             // 开了「允许读写 sdcard」后，/sdcard 下的目录交给 inSafeRoot + 相册规则判断，
