@@ -255,7 +255,14 @@ object ShellGuard {
 
     /** 系统分区 / 别的 App 数据：不管开没开 sdcard 都不许碰。 */
     private fun forbidden(p: String, sdcardOn: Boolean = false): String? {
-        val withSlash = if (p.endsWith("/")) p else "$p/"
+        // 先折掉 `..` 和 `//` 再判断：/data/local/tmp/../deepseek 实际是 /data/deepseek，
+        // 只看字符串开头会被骗过去。
+        val real = try {
+            java.nio.file.Paths.get(p).normalize().toString()
+        } catch (e: Exception) {
+            p
+        }
+        val withSlash = if (real.endsWith("/")) real else "$real/"
         // App 自己的私有目录永远放行（FORBIDDEN 里的 /data/data/ 不能一刀切到它头上）。
         if (APP_PRIVATE.any { withSlash.startsWith(it) }) return null
         // /data/local/tmp 是约定的临时目录，也放行。
