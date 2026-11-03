@@ -152,7 +152,19 @@ object ShellGuard {
             }
 
             if (word in WRITE_CMDS) {
-                val targets = if (word == "cp" || word == "mv" || word == "ln") paths.takeLast(1) else paths
+                val isMove = word == "cp" || word == "mv" || word == "ln"
+                val targets = if (isMove) paths.takeLast(1) else paths
+                // 源也要查：`mv 相册/x Download/` 不看源就能把照片搬出相册，
+                // 搬出去等于从相册消失了——和删掉一个效果，必须拦在源上。
+                if (isMove && paths.size > 1) {
+                    for (src in paths.dropLast(1)) {
+                        if (inPhoto(src)) {
+                            return ShellVerdict.Deny(
+                                "「$src」在相册/视频目录里，搬出去就等于从相册消失了，进阶模式下不允许。要动它请切到高危模式。",
+                            )
+                        }
+                    }
+                }
                 for (p in targets) {
                     if (!p.startsWith("/")) {
                         return ShellVerdict.Deny("「$word」的目标要写绝对路径，$p 不是。")
@@ -161,12 +173,16 @@ object ShellGuard {
                         return ShellVerdict.Deny(outOfScope(word, p, sdcardOn))
                     }
                     if (inPhoto(p)) {
-                        if (word == "rm" || word == "rmdir" || word == "mv") {
+                        val f = java.io.File(p)
+                        val isDir = p.endsWith("/") || f.isDirectory
+                        if (word == "rm" || word == "rmdir") {
                             return ShellVerdict.Deny(
-                                "「$p」在相册/视频目录里，删了或移走就没有了，进阶模式下不允许。要动它请切到高危模式。",
+                                "「$p」在相册/视频目录里，删了就没有了，进阶模式下不允许。要删照片请直接在相册 App 里操作。",
                             )
                         }
-                        if (word != "mkdir" && java.io.File(p).exists()) {
+                        // 往相册里放新文件（目标是目录、或文件还不存在）放行；
+                        // 覆盖已有文件才拒。
+                        if (!isDir && word != "mkdir" && f.exists()) {
                             return ShellVerdict.Deny(
                                 "「$p」已经存在，覆盖它会毁掉原文件，进阶模式下不允许。",
                             )
