@@ -78,11 +78,11 @@ object ShellGuard {
      * 相册里的路径只允许这些命令碰：它们没有「把内容写到指定文件」的参数。
      * 只读组里 `sort -o`、`logcat -f`、`curl -o` 都能写文件，所以按命令白名单，
      * 不按「只读组」——名单外的一律当「可能写」处理。
-     * `cp` 在名单里是为了能把照片复制到 Download；`mv` 不在，搬走等于从相册消失。
+     * 相册在进阶模式下是**纯只读**：连复制出去都不许（要复制请切高危）。
      */
     val PHOTO_READ = setOf(
         "ls", "cat", "head", "tail", "grep", "find", "file", "stat",
-        "du", "wc", "cut", "tr", "uniq", "cp",
+        "du", "wc", "cut", "tr", "uniq",
     )
 
     /** 相册/视频目录：可读可写，但不可删、不可覆盖已有文件。 */
@@ -160,7 +160,7 @@ object ShellGuard {
             if (photoArg != null && word !in PHOTO_READ) {
                 return ShellVerdict.Deny(
                     "「$word」的参数里有相册里的路径（$photoArg）。进阶模式下相册只给读，" +
-                        "只允许 " + PHOTO_READ.filter { it != "cp" }.joinToString("、") +
+                        "只允许 " + PHOTO_READ.joinToString("、") +
                         " 这些命令。能写文件的命令（sort -o、logcat -f、curl -o 之类）一律不许。",
                 )
             }
@@ -206,9 +206,8 @@ object ShellGuard {
                 val targets = if (isMove) paths.takeLast(1) else paths
                 // 源也要查：`mv 相册/x Download/` 不看源就能把照片搬出相册，
                 // 搬出去等于从相册消失了——和删掉一个效果，必须拦在源上。
-                // `cp` 例外：把照片复制到 Download 是允许的（读的延伸），
-                // 真正危险的是 `mv` / `ln` 把文件从相册里挪走。
-                if (isMove && paths.size > 1 && word != "cp") {
+                // 源在相册一律拒：`mv` 是搬走，`cp` 是复制出去，进阶模式两个都不许。
+                if (isMove && paths.size > 1) {
                     for (src in paths.dropLast(1)) {
                         if (inPhoto(src)) {
                             return ShellVerdict.Deny(
