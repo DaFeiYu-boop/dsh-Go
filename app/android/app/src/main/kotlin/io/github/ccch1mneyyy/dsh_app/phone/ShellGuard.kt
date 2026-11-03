@@ -206,7 +206,9 @@ object ShellGuard {
                 val targets = if (isMove) paths.takeLast(1) else paths
                 // 源也要查：`mv 相册/x Download/` 不看源就能把照片搬出相册，
                 // 搬出去等于从相册消失了——和删掉一个效果，必须拦在源上。
-                if (isMove && paths.size > 1) {
+                // `cp` 例外：把照片复制到 Download 是允许的（读的延伸），
+                // 真正危险的是 `mv` / `ln` 把文件从相册里挪走。
+                if (isMove && paths.size > 1 && word != "cp") {
                     for (src in paths.dropLast(1)) {
                         if (inPhoto(src)) {
                             return ShellVerdict.Deny(
