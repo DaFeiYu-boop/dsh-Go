@@ -74,6 +74,17 @@ object ShellGuard {
         "sed", "awk",
     )
 
+    /**
+     * 相册里的路径只允许这些命令碰：它们没有「把内容写到指定文件」的参数。
+     * 只读组里 `sort -o`、`logcat -f`、`curl -o` 都能写文件，所以按命令白名单，
+     * 不按「只读组」——名单外的一律当「可能写」处理。
+     * `cp` 在名单里是为了能把照片复制到 Download；`mv` 不在，搬走等于从相册消失。
+     */
+    val PHOTO_READ = setOf(
+        "ls", "cat", "head", "tail", "grep", "find", "file", "stat",
+        "du", "wc", "cut", "tr", "uniq", "cp",
+    )
+
     /** 相册/视频目录：可读可写，但不可删、不可覆盖已有文件。 */
     private val PHOTO_DIRS = listOf(
         "/sdcard/DCIM/", "/storage/emulated/0/DCIM/",
@@ -142,6 +153,17 @@ object ShellGuard {
             }
 
             val paths = pathArgs(seg)
+
+            // 相册路径 + 名单外的命令 → 一律拒。这条挡的是 `sort -o 相册/x`、
+            // `logcat -f 相册/x`、`curl -o 相册/x` 这类「只读组里能写」的命令。
+            val photoArg = paths.firstOrNull { inPhoto(it) }
+            if (photoArg != null && word !in PHOTO_READ) {
+                return ShellVerdict.Deny(
+                    "「$word」的参数里有相册里的路径（$photoArg）。进阶模式下相册只给读，" +
+                        "只允许 " + PHOTO_READ.filter { it != "cp" }.joinToString("、") +
+                        " 这些命令。能写文件的命令（sort -o、logcat -f、curl -o 之类）一律不许。",
+                )
+            }
             for (p in paths) {
                 forbidden(p, sdcardOn)?.let { hit ->
                     return ShellVerdict.Deny("碰到受保护的位置：$hit，进阶模式下不允许。")
@@ -177,7 +199,10 @@ object ShellGuard {
                         "「$word」的参数里有 `..`，进阶模式不支持用相对路径跳到别的目录。",
                     )
                 }
-                val isMove = word == "cp" || word == "mv" || word == "ln"
+                // `cp -t 目录 源` 里 -t 后面那串才是目标，其余全是源；
+                // 按普通「最后一个参数是目标」处理会把 -t 的目录误判成源。
+                val hasTargetFlag = Regex("""(^|\s)-t(\s|$)""").containsMatchIn(seg)
+                val isMove = !hasTargetFlag && (word == "cp" || word == "mv" || word == "ln")
                 val targets = if (isMove) paths.takeLast(1) else paths
                 // 源也要查：`mv 相册/x Download/` 不看源就能把照片搬出相册，
                 // 搬出去等于从相册消失了——和删掉一个效果，必须拦在源上。
@@ -323,7 +348,7 @@ object ShellCommands {
         Triple("tail", "read", "看文件结尾几行"),
         Triple("grep", "read", "在文件或输出里搜文字"),
         Triple("wc", "read", "数行数、字数"),
-        Triple("sort", "read", "排序"),
+        Triple("sort", "system", "排序（带 -o 会写文件）"),
         Triple("uniq", "read", "去重"),
         Triple("cut", "read", "按列截取"),
         Triple("find", "read", "按名字/时间找文件"),
@@ -339,9 +364,9 @@ object ShellCommands {
         Triple("whoami", "read", "看当前用户名"),
         Triple("getprop", "read", "读系统属性：型号、Android 版本"),
         Triple("dumpsys", "read", "读系统服务状态：电池、显示、WiFi"),
-        Triple("logcat", "read", "读系统日志"),
+        Triple("logcat", "system", "读系统日志（带 -f 会写文件）"),
         Triple("screencap", "read", "截屏存成图片"),
-        Triple("date", "read", "看当前时间"),
+        Triple("date", "system", "看时间（带 -s 会改系统时间）"),
         Triple("echo", "read", "输出一段文字"),
         Triple("printf", "read", "格式化输出文字"),
         Triple("pwd", "read", "显示当前目录"),
@@ -408,6 +433,9 @@ object ShellCommands {
     private val SAFE_OFF: Set<String> = setOf(
         "rm", "rmdir", "chmod", "chown", "truncate", "ln", "mv",
         "am", "pm", "input", "settings", "svc", "wm", "curl",
+        // 这几条名字像只读，实际带写参数：sort -o / logcat -f 能写文件，
+        // date -s 能改系统时间。默认关，要用自己去额外设置里开。
+        "sort", "logcat", "date",
     )
 
     /** 进阶模式默认打开：只读全开，文件类只留只读性的，系统类关掉能改状态的。 */
