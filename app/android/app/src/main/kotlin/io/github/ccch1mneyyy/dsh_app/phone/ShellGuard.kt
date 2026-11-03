@@ -123,6 +123,24 @@ object ShellGuard {
                 )
             }
 
+            // `cd` 会改工作目录：只许进安全目录，否则 `cd 相册 && rm *` 能用相对路径
+            // 绕过全部保护（pathArgs 只抓绝对路径，相对路径根本进不了检查）。
+            if (word == "cd") {
+                val dest = pathArgs(seg).firstOrNull()
+                if (dest != null) {
+                    // 相册/视频目录：即使开了 sdcard 也不许 cd 进去，
+                    // 否则 `cd 相册 && rm *` 用相对路径就绕过了照片保护。
+                    if (inPhoto(dest)) {
+                        return ShellVerdict.Deny("「cd」不能进相册/视频目录（$dest）。")
+                    }
+                    if (!inSafeRoot(dest, sdcardOn)) {
+                        return ShellVerdict.Deny(
+                            "「cd」只能进 Download、/data/local/tmp 或 App 私有目录，$dest 不行。",
+                        )
+                    }
+                }
+            }
+
             val paths = pathArgs(seg)
             for (p in paths) {
                 forbidden(p, sdcardOn)?.let { hit ->
@@ -152,6 +170,13 @@ object ShellGuard {
             }
 
             if (word in WRITE_CMDS) {
+                // `cd /sdcard/Download && rm ../Pictures/x` 这种相对跳转能绕过路径检查
+                // （pathArgs 只看绝对路径），写类命令一律不许带 `..`。
+                if (seg.contains("..")) {
+                    return ShellVerdict.Deny(
+                        "「$word」的参数里有 `..`，进阶模式不支持用相对路径跳到别的目录。",
+                    )
+                }
                 val isMove = word == "cp" || word == "mv" || word == "ln"
                 val targets = if (isMove) paths.takeLast(1) else paths
                 // 源也要查：`mv 相册/x Download/` 不看源就能把照片搬出相册，
