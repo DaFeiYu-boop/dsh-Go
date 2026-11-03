@@ -184,9 +184,9 @@ object ShellGuard {
                 if (!inSafeRoot(p, sdcardOn)) {
                     return ShellVerdict.Deny(outOfScope(word, p, sdcardOn))
                 }
-                if (inPhoto(p) && java.io.File(p).exists()) {
+                if (inPhoto(p)) {
                     return ShellVerdict.Deny(
-                        "「$p」已经存在，覆盖它会毁掉原文件，进阶模式下不允许。",
+                        "相册是只读的（$p）。进阶模式下只能看和复制出去，不能往里写、也不能删。",
                     )
                 }
             }
@@ -225,20 +225,9 @@ object ShellGuard {
                         return ShellVerdict.Deny(outOfScope(word, p, sdcardOn))
                     }
                     if (inPhoto(p)) {
-                        val f = java.io.File(p)
-                        val isDir = p.endsWith("/") || f.isDirectory
-                        if (word == "rm" || word == "rmdir") {
-                            return ShellVerdict.Deny(
-                                "「$p」在相册/视频目录里，删了就没有了，进阶模式下不允许。要删照片请直接在相册 App 里操作。",
-                            )
-                        }
-                        // 往相册里放新文件（目标是目录、或文件还不存在）放行；
-                        // 覆盖已有文件才拒。
-                        if (!isDir && word != "mkdir" && f.exists()) {
-                            return ShellVerdict.Deny(
-                                "「$p」已经存在，覆盖它会毁掉原文件，进阶模式下不允许。",
-                            )
-                        }
+                        return ShellVerdict.Deny(
+                            "相册是只读的（$p）。进阶模式下只能看和复制出去，不能往里写、也不能删。",
+                        )
                     }
                 }
             }
