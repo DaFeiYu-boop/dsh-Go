@@ -306,13 +306,20 @@ object ShellGuard {
     }
 
     /** 拒绝时说清「去哪开」。 */
-    private fun outOfScope(word: String, p: String, sdcardOn: Boolean): String =
-        if (!sdcardOn && (p.startsWith("/sdcard") || p.startsWith("/storage/emulated/0"))) {
-            "「$word」只能改 Download 和 /data/local/tmp，这一条碰到了 $p。" +
-                "要让 AI 读写整个 /sdcard，去 设置 → 终端权限 → 额外设置 里打开「允许读写整个 /sdcard」。"
-        } else {
-            "「$word」碰到了一个不在允许范围内的位置：$p。"
+    private fun outOfScope(word: String, p: String, sdcardOn: Boolean): String {
+        // 相册要排在 sdcard 前面：它也在 /sdcard 下，但开了那个开关也不许写，
+        // 提示成「去开开关」只会让人白点一次。
+        if (inPhoto(p)) {
+            return "「$word」碰到的是相册/视频目录（$p）。进阶模式下相册是只读的：" +
+                "「允许读写整个 /sdcard」开不开都一样，只能看和复制出去，不能写、不能删、不能覆盖。" +
+                "要动它请切到高危模式。"
         }
+        if (!sdcardOn && (p.startsWith("/sdcard") || p.startsWith("/storage/emulated/0"))) {
+            return "「$word」只能改 Download 和 /data/local/tmp，这一条碰到了 $p。" +
+                "要让 AI 读写整个 /sdcard，去 设置 → 终端权限 → 额外设置 里打开「允许读写整个 /sdcard」。"
+        }
+        return "「$word」碰到了一个不在允许范围内的位置：$p。"
+    }
 }
 
 /** 命令清单：设置页按组展示，默认值也在这里。 */

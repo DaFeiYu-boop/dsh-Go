@@ -14,9 +14,17 @@ import java.io.File
  */
 internal object OrphanSweep {
 
-    fun sweepAsync() = Thread {
-        runCatching { sweep() }
-    }.apply { isDaemon = true }.start()
+    /** 每个进程只扫一次：MainActivity.onCreate 在旋转屏幕、从最近任务回来时也会重跑。 */
+    @Volatile
+    private var done = false
+
+    fun sweepAsync() {
+        if (done) return
+        done = true
+        Thread {
+            runCatching { sweep() }
+        }.apply { isDaemon = true }.start()
+    }
 
     private fun sweep() {
         val self = Process.myPid()
