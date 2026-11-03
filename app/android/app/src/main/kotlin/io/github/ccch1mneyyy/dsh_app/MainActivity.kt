@@ -81,6 +81,8 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // 「打开 App 时自动启动」: DSH boots while Flutter starts, not after its first frame.
         LaunchStart.onActivityCreate(this)
+        // 上一次实例被系统杀掉时引擎可能还挂在 init 下：启动时先清掉，避免两份引擎打架。
+        io.github.ccch1mneyyy.dsh_app.phone.background.OrphanSweep.sweepAsync()
         // 启动画面: the first activity of a cold start hands the system's launch window to Dart's.
         LaunchScreen.onActivityCreate(this, coldDart = FlutterEngineCache.getInstance().get(ENGINE_ID) == null)
         // Recreated, or reopened from recents: the launch intent is an old notification tap or
