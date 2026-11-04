@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -8,27 +7,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../state/settings_state.dart';
 
-/// 一次翻译的结果：成功带译文，失败带能看懂的原因。
-class TranslationOutcome {
-  const TranslationOutcome.ok(String this.text) : error = null;
-  const TranslationOutcome.fail(String this.error) : text = null;
-
-  final String? text;
-  final String? error;
-
-  bool get isOk => text != null;
-}
-
 /// 插件描述的机器翻译。
 ///
 /// 走 DeepSeek 的 chat 接口，用用户自己的 API key；结果按「插件 + 语言」
 /// 缓存在 SharedPreferences 里，同一个插件翻过一次就不再花钱。
-///
-/// 模型按 [_models] 顺序试：老名字失效时自动落到新名字上。
 class PluginTranslator {
   const PluginTranslator();
 
-  static const _models = ['deepseek-chat', 'deepseek-flash'];
+  static const model = 'deepseek-chat';
   static const _endpoint = 'https://api.deepseek.com/chat/completions';
   static const _prefPrefix = 'plugin_tr_';
 
@@ -46,51 +32,38 @@ class PluginTranslator {
     await prefs.setString(_cacheKey(key, lang), text);
   }
 
-  /// 翻一段文本。失败不抛，返回带原因的结果。
-  Future<TranslationOutcome> translate({
+  /// 翻一段文本。失败返回 null（不抛）。
+  Future<String?> translate({
     required String key,
     required String text,
     required String lang,
     required String apiKey,
   }) async {
     final trimmed = text.trim();
-    if (trimmed.isEmpty) return const TranslationOutcome.fail('这段说明是空的');
+    if (trimmed.isEmpty) return null;
     final hit = await cached(key, lang);
-    if (hit != null) return TranslationOutcome.ok(hit);
-
-    TranslationOutcome last = const TranslationOutcome.fail('没有可用的模型');
-    for (final model in _models) {
-      final out = await _request(trimmed, lang, apiKey, model);
-      if (out.isOk) {
-        await _save(key, lang, out.text!);
-        return out;
-      }
-      last = out;
-      // key 不对就别再换个模型重试了。
-      final err = out.error ?? '';
-      if (err.contains('401') || err.contains('403')) break;
-    }
-    return last;
+    if (hit != null) return hit;
+    final out = await _request(trimmed, lang, apiKey);
+    if (out != null && out.isNotEmpty) await _save(key, lang, out);
+    return out;
   }
 
-  Future<TranslationOutcome> _request(
-    String text,
-    String lang,
-    String apiKey,
-    String model,
-  ) async {
+  Future<String?> _request(String text, String lang, String apiKey) async {
     final target = switch (lang) {
       'en' => 'English',
       _ => 'Simplified Chinese',
     };
     final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 12)
+      ..connectionTimeout = const Duration(seconds: 10)
       ..idleTimeout = const Duration(seconds: 3);
     try {
       final req = await client.postUrl(Uri.parse(_endpoint));
       req.headers
         ..set(HttpHeaders.authorizationHeader, 'Bearer $apiKey')
-        ..set(HttpHeaders.contentTypeHeader, 'application/json');
+        ..set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
+      // ContentType 的默认 charset 是 latin1：不显式设成 utf8，
+      // 含中文/俄语/emoji 的 JSON 会在 write() 抛 Contains invalid characters。
+      req.encoding = utf8;
       req.write(jsonEncode({
         'model': model,
         'temperature': 0,
@@ -105,37 +78,19 @@ class PluginTranslator {
           {'role': 'user', 'content': text},
         ],
       }));
-      final res = await req.close().timeout(const Duration(seconds: 50));
-      final body = await res.transform(utf8.decoder).join().timeout(const Duration(seconds: 50));
-      if (res.statusCode != 200) {
-        final snippet = body.length > 240 ? '${body.substring(0, 240)}…' : body;
-        return TranslationOutcome.fail('HTTP ${res.statusCode}（$model）：$snippet');
-      }
+      final res = await req.close().timeout(const Duration(seconds: 45));
+      final body = await res.transform(utf8.decoder).join().timeout(const Duration(seconds: 45));
+      if (res.statusCode != 200) return null;
       final decoded = jsonDecode(body);
-      if (decoded is! Map) {
-        return const TranslationOutcome.fail('接口返回的不是 JSON 对象');
-      }
+      if (decoded is! Map) return null;
       final choices = decoded['choices'];
-      if (choices is! List || choices.isEmpty) {
-        return const TranslationOutcome.fail('接口没有返回 choices');
-      }
+      if (choices is! List || choices.isEmpty) return null;
       final message = (choices.first as Map)['message'];
-      if (message is! Map) {
-        return const TranslationOutcome.fail('接口没有返回 message');
-      }
+      if (message is! Map) return null;
       final content = message['content'];
-      if (content is! String || content.trim().isEmpty) {
-        return const TranslationOutcome.fail('接口返回了空译文');
-      }
-      return TranslationOutcome.ok(content.trim());
-    } on SocketException catch (e) {
-      return TranslationOutcome.fail('连不上 api.deepseek.com（${e.osError?.message ?? e.message}）');
-    } on TimeoutException {
-      return const TranslationOutcome.fail('请求超时（api.deepseek.com 没在 50 秒内回）');
-    } on HandshakeException catch (e) {
-      return TranslationOutcome.fail('TLS 握手失败（${e.message}）');
-    } catch (e) {
-      return TranslationOutcome.fail('$e');
+      return content is String ? content.trim() : null;
+    } catch (_) {
+      return null;
     } finally {
       client.close(force: true);
     }
@@ -166,33 +121,13 @@ class TranslatableDescription extends ConsumerStatefulWidget {
 
 class _TranslatableDescriptionState extends ConsumerState<TranslatableDescription> {
   String? _translated;
-  String? _error;
   bool _showingTranslation = false;
   bool _loading = false;
   bool _failed = false;
-  bool _restored = false;
 
   String get _lang {
     final code = Localizations.localeOf(context).languageCode;
     return code == 'en' ? 'en' : 'zh';
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_restored) return;
-    _restored = true;
-    _restore();
-  }
-
-  /// 这个插件翻过就记住：重进页面直接给译文，不回到原文。
-  Future<void> _restore() async {
-    final hit = await ref.read(pluginTranslatorProvider).cached(widget.cacheKey, _lang);
-    if (hit == null || !mounted) return;
-    setState(() {
-      _translated = hit;
-      _showingTranslation = true;
-    });
   }
 
   Future<void> _toggle() async {
@@ -207,7 +142,6 @@ class _TranslatableDescriptionState extends ConsumerState<TranslatableDescriptio
     setState(() {
       _loading = true;
       _failed = false;
-      _error = null;
     });
     final apiKey = ref.read(settingsProvider).apiKey.trim();
     if (apiKey.isEmpty) {
@@ -215,11 +149,10 @@ class _TranslatableDescriptionState extends ConsumerState<TranslatableDescriptio
       setState(() {
         _loading = false;
         _failed = true;
-        _error = '没有找到 API key（设置 → 模型 里配一下）';
       });
       return;
     }
-    final out = await ref.read(pluginTranslatorProvider).translate(
+    final result = await ref.read(pluginTranslatorProvider).translate(
           key: widget.cacheKey,
           text: widget.text,
           lang: _lang,
@@ -228,10 +161,9 @@ class _TranslatableDescriptionState extends ConsumerState<TranslatableDescriptio
     if (!mounted) return;
     setState(() {
       _loading = false;
-      _translated = out.text;
-      _error = out.error;
-      _showingTranslation = out.isOk;
-      _failed = !out.isOk;
+      _translated = result;
+      _showingTranslation = result != null;
+      _failed = result == null;
     });
   }
 
@@ -272,20 +204,11 @@ class _TranslatableDescriptionState extends ConsumerState<TranslatableDescriptio
               ),
             if (_showingTranslation) ...[
               const SizedBox(width: 4),
-              Text('机器翻译',
-                  style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
+              Text('机器翻译', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline)),
             ],
           ],
         ),
-        if (_failed && _error != null) ...[
-          const SizedBox(height: 2),
-          SelectableText(
-            _error!,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-          ),
-        ],
-        SelectableText(body,
-            style: widget.style ?? theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
+        SelectableText(body, style: widget.style ?? theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
       ],
     );
   }
