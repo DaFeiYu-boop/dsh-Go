@@ -170,10 +170,29 @@ class _TranslatableDescriptionState extends ConsumerState<TranslatableDescriptio
   bool _showingTranslation = false;
   bool _loading = false;
   bool _failed = false;
+  bool _restored = false;
 
   String get _lang {
     final code = Localizations.localeOf(context).languageCode;
     return code == 'en' ? 'en' : 'zh';
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_restored) return;
+    _restored = true;
+    _restore();
+  }
+
+  /// 这个插件翻过就记住：重进页面直接给译文，不回到原文。
+  Future<void> _restore() async {
+    final hit = await ref.read(pluginTranslatorProvider).cached(widget.cacheKey, _lang);
+    if (hit == null || !mounted) return;
+    setState(() {
+      _translated = hit;
+      _showingTranslation = true;
+    });
   }
 
   Future<void> _toggle() async {
