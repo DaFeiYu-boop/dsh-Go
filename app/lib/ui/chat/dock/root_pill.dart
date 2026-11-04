@@ -21,6 +21,10 @@ class RootPill extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final shell = ref.watch(phoneProvider.select((s) => s.status.shell));
+    // 原版模式没有任何终端能力，胶囊只会碍事；要开启去 设置 → 终端权限。
+    if (shell.mode != 'safe' && shell.mode != 'full') {
+      return const SizedBox.shrink();
+    }
     final theme = Theme.of(context);
     final (label, color, icon) = switch (shell.mode) {
       'safe' => ('终端 · 进阶', Colors.amber.shade700, Icons.shield_outlined),
