@@ -22,7 +22,6 @@ class RootPill extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final shell = ref.watch(phoneProvider.select((s) => s.status.shell));
     final theme = Theme.of(context);
-    final dsh = DshColors.of(context);
     final (label, color, icon) = switch (shell.mode) {
       'safe' => ('终端 · 进阶', Colors.amber.shade700, Icons.shield_outlined),
       'full' => ('终端 · 高危', Colors.red.shade600, Icons.terminal),
