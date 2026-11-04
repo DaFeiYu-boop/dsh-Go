@@ -88,13 +88,9 @@ class PluginTranslator {
       ..idleTimeout = const Duration(seconds: 3);
     try {
       final req = await client.postUrl(Uri.parse(_endpoint));
-      req.headers
-        ..set(HttpHeaders.authorizationHeader, 'Bearer $apiKey')
-        ..set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8');
-      // ContentType 默认 charset 是 latin1：不显式设 utf8，
-      // 含中文/俄语/emoji 的 JSON 会在 write() 抛 Contains invalid characters。
-      req.encoding = utf8;
-      req.write(jsonEncode({
+      // 自己编码成 UTF-8 字节再 add()：不碰 IOSink.encoding。
+      // 先设 headers 再改 encoding 会抛 Bad state: IOSink encoding is not mutable。
+      final payload = utf8.encode(jsonEncode({
         'model': model,
         'temperature': 0,
         'stream': false,
@@ -108,6 +104,11 @@ class PluginTranslator {
           {'role': 'user', 'content': text},
         ],
       }));
+      req.headers
+        ..set(HttpHeaders.authorizationHeader, 'Bearer $apiKey')
+        ..set(HttpHeaders.contentTypeHeader, 'application/json; charset=utf-8')
+        ..set(HttpHeaders.contentLengthHeader, '${payload.length}');
+      req.add(payload);
       final res = await req.close().timeout(const Duration(seconds: 50));
       final body = await res.transform(utf8.decoder).join().timeout(const Duration(seconds: 50));
       if (res.statusCode != 200) {
