@@ -1801,6 +1801,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                             todoProgress: ref.watch(dockFoldedProvider),
                                           ),
                                         ],
+                                        // 终端胶囊：跟着输入框走，始终可见（原版档位下也显示，点进去可切档）。
+                                        if (!readOnly) const RootDockSlot(),
                                         // It gives the activity strip its place while a reply generates.
                                         if (!readOnly) ComposerStripSlot(sessionId: sessionId, visible: !running),
                                       ],
