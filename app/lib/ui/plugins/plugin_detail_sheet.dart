@@ -446,7 +446,11 @@ class BundleSheet extends ConsumerWidget {
               ],
               if (summary != null) ...[
                 const SizedBox(height: 16),
-                SelectableText(summary, style: theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
+                TranslatableDescription(
+                  text: summary,
+                  cacheKey: '${summary.hashCode}',
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+                ),
               ],
               if (error.isNotEmpty) ...[
                 const SizedBox(height: 16),
