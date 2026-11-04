@@ -1806,7 +1806,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                         if (!readOnly) ComposerStripSlot(sessionId: sessionId, visible: !running),
                                       ],
                                       accessory: pillsBesideStrip
-                                          ? _stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false)
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const RootPill(compact: true),
+                                                if (_stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false) case final risk?) ...[
+                                                  const SizedBox(width: 6),
+                                                  risk,
+                                                ],
+                                              ],
+                                            )
                                           : null,
                                     ),
                                   ),
@@ -1827,7 +1836,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                           ? Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                const RootPill(compact: true),
+                                                const RootPill(),
                                                 if (composerPills != null) ...[
                                                   const SizedBox(width: 6),
                                                   composerPills,
