@@ -1847,20 +1847,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                           ),
                                         ],
                                         // It gives the activity strip its place while a reply generates.
-                                        if (!readOnly) const RootDockSlot(),
                                         if (!readOnly) ComposerStripSlot(sessionId: sessionId, visible: !running),
                                       ],
-                                      accessory: pillsBesideStrip
-                                          ? Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                if (_stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false) case final risk?) ...[
-                                                  const SizedBox(width: 6),
-                                                  risk,
-                                                ],
-                                              ],
-                                            )
-                                          : null,
                                     ),
                                   ),
                                 ),
@@ -1876,13 +1864,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                       // 终端胶囊与「完全权限」并排，都在输入框左侧。
                                       // 之前胶囊在 DockStack 卡片堆里、完全权限在输入框 leading 里，
                                       // 生成/静止切换时两者会上下错位。
-                                      leading: pillsBesideStrip
-                                          ? const RootPill(compact: true)
-                                          : pillsInCapsules
+                                      leading: (pillsBesideStrip || pillsInCapsules)
                                           ? Row(
                                               mainAxisSize: MainAxisSize.min,
                                               children: [
-                                                const RootPill(),
+                                                if (pillsInCapsules) const RootPill()
+                                                else const RootPill(compact: true),
                                                 if (composerPills != null) ...[
                                                   const SizedBox(width: 6),
                                                   composerPills,
