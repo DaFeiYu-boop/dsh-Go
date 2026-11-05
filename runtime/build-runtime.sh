@@ -56,7 +56,8 @@ XZ_THREADS="${XZ_THREADS:-4}"       # each xz -6 worker needs ~100 MiB; output d
 PRUNE_DEV_METADATA="${PRUNE_DEV_METADATA:-1}"   # drop *.map / *.d.ts from node_modules
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-1767225600}"  # 2026-01-01T00:00:00Z, fixed tar mtimes
 
-UBUNTU_MIRROR="https://mirrors.tuna.tsinghua.edu.cn/ubuntu-cdimage/ubuntu-base/releases/24.04/release"
+UBUNTU_MIRROR="${UBUNTU_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu-cdimage/ubuntu-base/releases/24.04/release}"
+UBUNTU_MIRROR_FALLBACK="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release"
 NODE_MIRROR="https://npmmirror.com/mirrors/node"
 NPM_REGISTRY="https://registry.npmmirror.com"
 TERMUX_REPO="https://packages.termux.dev/apt/termux-main"
@@ -118,7 +119,12 @@ pin_of() {
 ubuntu_base() {  # $1 = ubuntu arch; echoes path
   local arch="$1" name="ubuntu-base-${UBUNTU_VERSION}-base-$1.tar.gz"
   local dir="$CACHE/ubuntu/$UBUNTU_VERSION"
-  fetch "$UBUNTU_MIRROR/SHA256SUMS" "$dir/SHA256SUMS"
+  fetch "$UBUNTU_MIRROR/SHA256SUMS" "$dir/SHA256SUMS" || true
+  if ! awk -v f="$name" '{n=$2; sub(/^\*/,"",n); if (n==f) found=1} END{exit !found}' "$dir/SHA256SUMS" 2>/dev/null; then
+    echo "[runtime] mirror SHA256SUMS missing $name, falling back to cdimage.ubuntu.com" >&2
+    fetch "$UBUNTU_MIRROR_FALLBACK/SHA256SUMS" "$dir/SHA256SUMS"
+    fetch "$UBUNTU_MIRROR_FALLBACK/$name" "$dir/$name" >/dev/null 2>&1 || true
+  fi
   local listed; listed="$(awk -v f="$name" '{n=$2; sub(/^\*/,"",n); if (n==f) print $1}' "$dir/SHA256SUMS")"
   [[ -n "$listed" ]] || { rm -f "$dir/SHA256SUMS"; die "$name not listed in SHA256SUMS (stale cache removed, rerun)"; }
   local pin; pin="$(pin_of "$name")"
