@@ -191,6 +191,58 @@ class PhoneController extends Notifier<PhoneState> {
 
   Future<bool> openAccessibilitySettings() => _channel.openAccessibilitySettings();
 
+  /// 切终端权限档位：original / safe / full。
+  Future<bool> setShellMode(String mode) async {
+    final ok = await _channel.setShellMode(mode);
+    if (ok && ref.mounted) {
+      state = state.copyWith(
+        status: state.status.copyWith(
+          shell: _copyShell(state.status.shell, mode: mode),
+        ),
+      );
+      // 切档会影响 sdcardAllowed（高危恒开）、allowed 的默认值，
+      // 乐观值只保证按钮立刻响应，这里再拉一次服务端真值兜底。
+      unawaited(refreshStatus());
+    }
+    return ok;
+  }
+
+  Future<bool> setAllowedCommands(List<String> commands) async {
+    final ok = await _channel.setAllowedCommands(commands);
+    if (ok && ref.mounted) {
+      state = state.copyWith(
+        status: state.status.copyWith(
+          shell: _copyShell(state.status.shell, allowed: commands),
+        ),
+      );
+    }
+    return ok;
+  }
+
+  Future<bool> setSdcardAllowed(bool on) async {
+    final ok = await _channel.setSdcardAllowed(on);
+    if (ok && ref.mounted) {
+      state = state.copyWith(
+        status: state.status.copyWith(
+          shell: _copyShell(state.status.shell, sdcardAllowed: on),
+        ),
+      );
+    }
+    return ok;
+  }
+
+  PhoneShellStatus _copyShell(
+    PhoneShellStatus s, {
+    String? mode,
+    List<String>? allowed,
+    bool? sdcardAllowed,
+  }) => PhoneShellStatus(
+    mode: mode ?? s.mode,
+    allowed: allowed ?? s.allowed,
+    sdcardAllowed: sdcardAllowed ?? s.sdcardAllowed,
+    commands: s.commands,
+  );
+
   Future<PhoneResult> grantSecureSettings() => _thenRefresh(_channel.grantSecureSettings());
 
   Future<bool> openAppDetails() => _channel.openAppDetails();

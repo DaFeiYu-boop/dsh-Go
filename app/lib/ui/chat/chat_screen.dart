@@ -77,6 +77,7 @@ import 'chat_list.dart';
 import 'composer.dart';
 import 'composer_toast.dart';
 import 'dock/chat_dock.dart';
+import 'dock/root_pill.dart';
 import 'dock/dock_stack.dart';
 import 'empty_state.dart';
 import 'empty_actions.dart';
@@ -1846,10 +1847,20 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                           ),
                                         ],
                                         // It gives the activity strip its place while a reply generates.
+                                        if (!readOnly) const RootDockSlot(),
                                         if (!readOnly) ComposerStripSlot(sessionId: sessionId, visible: !running),
                                       ],
                                       accessory: pillsBesideStrip
-                                          ? _stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false)
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const RootPill(compact: true),
+                                                if (_stripRisk(sessionId, autoApprove: chat?.autoApprove ?? false) case final risk?) ...[
+                                                  const SizedBox(width: 6),
+                                                  risk,
+                                                ],
+                                              ],
+                                            )
                                           : null,
                                     ),
                                   ),
@@ -1863,7 +1874,21 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                     child: NativeComposerBar(
                                       sessionId: sessionId,
                                       visible: !running,
-                                      leading: pillsInCapsules ? composerPills : null,
+                                      // 终端胶囊与「完全权限」并排，都在输入框左侧。
+                                      // 之前胶囊在 DockStack 卡片堆里、完全权限在输入框 leading 里，
+                                      // 生成/静止切换时两者会上下错位。
+                                      leading: pillsInCapsules
+                                          ? Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const RootPill(),
+                                                if (composerPills != null) ...[
+                                                  const SizedBox(width: 6),
+                                                  composerPills,
+                                                ],
+                                              ],
+                                            )
+                                          : null,
                                       strip: false,
                                     ),
                                   ),

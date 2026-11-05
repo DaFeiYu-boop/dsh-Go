@@ -32,6 +32,7 @@ import '../theme/theme.dart';
 import 'config/plugin_config_entries.dart';
 import 'plugin_detail_sheet.dart' show PluginHero;
 import 'plugin_widgets.dart';
+import 'plugin_translate.dart';
 import 'voice_scribe_settings_page.dart';
 
 /// Dot colour of a row's state.
@@ -423,7 +424,11 @@ class InventorySheet extends ConsumerWidget {
                 ),
                 if (item.description case final description?) ...[
                   const SizedBox(height: 16),
-                  SelectableText(description, style: theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
+                  TranslatableDescription(
+                    text: description,
+                    cacheKey: '${description.hashCode}',
+                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+                  ),
                 ],
                 if (item.metaError case final error?) ...[
                   const SizedBox(height: 12),

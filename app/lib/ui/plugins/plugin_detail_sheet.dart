@@ -25,6 +25,7 @@ import 'market_widgets.dart';
 import 'plugin_reload_action.dart';
 import 'native/native_plugin_section.dart';
 import 'plugin_actions.dart';
+import 'plugin_translate.dart';
 import 'plugin_load_status.dart';
 import 'plugin_widgets.dart';
 import 'seats/plugin_web_places.dart';
@@ -184,7 +185,11 @@ class MarketPluginSheet extends ConsumerWidget {
               ],
               if (description != null) ...[
                 const SizedBox(height: 16),
-                SelectableText(description, style: theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
+                TranslatableDescription(
+                  text: description,
+                  cacheKey: '${description.hashCode}',
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+                ),
               ],
               if (listing != null) ...[const SizedBox(height: 24), MarketRiskCard(listing: listing)],
               const SizedBox(height: 20),
@@ -439,7 +444,11 @@ class BundleSheet extends ConsumerWidget {
               ],
               if (summary != null) ...[
                 const SizedBox(height: 16),
-                SelectableText(summary, style: theme.textTheme.bodyMedium?.copyWith(height: 1.7)),
+                TranslatableDescription(
+                  text: summary,
+                  cacheKey: '${summary.hashCode}',
+                  style: theme.textTheme.bodyMedium?.copyWith(height: 1.7),
+                ),
               ],
               if (error.isNotEmpty) ...[
                 const SizedBox(height: 16),
