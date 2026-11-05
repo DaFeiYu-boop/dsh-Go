@@ -1860,7 +1860,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> with WidgetsBindingObse
                                     aside: typing,
                                     child: NativeComposerBar(
                                       sessionId: sessionId,
-                                      visible: !running,
+                                      visible: true,
                                       // 终端胶囊与「完全权限」并排，都在输入框左侧。
                                       // 之前胶囊在 DockStack 卡片堆里、完全权限在输入框 leading 里，
                                       // 生成/静止切换时两者会上下错位。
