@@ -94,6 +94,10 @@ class ComposerStrip extends StatelessWidget {
         child: GlassSurface(
           tier: GlassTier.chrome,
           stadium: true,
+          // 这一条每几秒刷新一次文字；开模糊时每次刷新都要重新采样背景，
+          // 那一帧会露出下面的黑底（用户实测闪黑边）。关掉模糊改走
+          // GlassSurface 自带的近乎不透明填充：配色不变，刷新不再重采样。
+          blur: false,
           onTap: onTap,
           child: SizedBox(
             height: StripMetrics.height,
