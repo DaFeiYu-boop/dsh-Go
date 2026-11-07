@@ -87,42 +87,47 @@ class ComposerStrip extends StatelessWidget {
       button: onTap != null,
       label: '$title $text',
       excludeSemantics: true,
-      child: GlassSurface(
-        tier: GlassTier.chrome,
-        stadium: true,
-        onTap: onTap,
-        child: SizedBox(
-          height: StripMetrics.height,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(StripMetrics.iconInset, 0, StripMetrics.end, 0),
-            child: Row(
-              children: [
-                SizedBox.square(
-                  key: const ValueKey('strip-mark'),
-                  dimension: StripMetrics.icon,
-                  child: glyph != null
-                      ? Icon(glyph, size: 16, color: dsh.textTertiary)
-                      : PluginAvatar(name: package, title: title, icon: avatar, size: StripMetrics.icon),
-                ),
-                const SizedBox(width: StripMetrics.iconGap),
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: AppMotion.of(context, AppMotion.quick),
-                    layoutBuilder: (current, previous) =>
-                        Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
-                    child: Text(
-                      text,
-                      key: ValueKey(text),
-                      maxLines: 1,
-                      softWrap: false,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppType.tabular(
-                        theme.textTheme.labelMedium!.copyWith(color: color, fontWeight: FontWeight.w500),
+      // 插件每次推新数据都会重建这一行；没有 RepaintBoundary 时，毛玻璃
+      // 会跟着重画一次背景模糊，那一帧没合成完就露出黑的底（看着像闪一下）。
+      // 隔一层之后只重绘文字，玻璃自己不动。
+      child: RepaintBoundary(
+        child: GlassSurface(
+          tier: GlassTier.chrome,
+          stadium: true,
+          onTap: onTap,
+          child: SizedBox(
+            height: StripMetrics.height,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(StripMetrics.iconInset, 0, StripMetrics.end, 0),
+              child: Row(
+                children: [
+                  SizedBox.square(
+                    key: const ValueKey('strip-mark'),
+                    dimension: StripMetrics.icon,
+                    child: glyph != null
+                        ? Icon(glyph, size: 16, color: dsh.textTertiary)
+                        : PluginAvatar(name: package, title: title, icon: avatar, size: StripMetrics.icon),
+                  ),
+                  const SizedBox(width: StripMetrics.iconGap),
+                  Expanded(
+                    child: AnimatedSwitcher(
+                      duration: AppMotion.of(context, AppMotion.quick),
+                      layoutBuilder: (current, previous) =>
+                          Stack(alignment: Alignment.centerLeft, children: [...previous, ?current]),
+                      child: Text(
+                        text,
+                        key: ValueKey(text),
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppType.tabular(
+                          theme.textTheme.labelMedium!.copyWith(color: color, fontWeight: FontWeight.w500),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
