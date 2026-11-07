@@ -39,6 +39,9 @@ jobs:
           sudo apt-get install -y -qq zstd file gpgv
 
       - name: Build runtime (arm64-v8a)
+        # 每次按当前镜像索引重新解析 noble deb（pin 的版本会从 pool 里消失，导致 404）
+        env:
+          UPDATE_DEB_LOCK: '1'
         run: bash runtime/build-runtime.sh arm64-v8a
 
       - name: Build APK
