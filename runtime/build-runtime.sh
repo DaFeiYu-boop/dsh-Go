@@ -61,8 +61,8 @@ UBUNTU_MIRROR_FALLBACK="http://cdimage.ubuntu.com/ubuntu-base/releases/24.04/rel
 NODE_MIRROR="https://npmmirror.com/mirrors/node"
 NPM_REGISTRY="https://registry.npmmirror.com"
 TERMUX_REPO="https://packages.termux.dev/apt/termux-main"
-UBUNTU_ARCHIVE_AMD64="https://mirrors.tuna.tsinghua.edu.cn/ubuntu"        # InRelease verified with gpgv
-UBUNTU_ARCHIVE_ARM64="https://mirrors.tuna.tsinghua.edu.cn/ubuntu-ports"
+UBUNTU_ARCHIVE_AMD64="${UBUNTU_ARCHIVE_AMD64:-https://mirrors.tuna.tsinghua.edu.cn/ubuntu}"        # InRelease verified with gpgv
+UBUNTU_ARCHIVE_ARM64="${UBUNTU_ARCHIVE_ARM64:-https://mirrors.ustc.edu.cn/ubuntu-ports}"   # tuna 的 ubuntu-ports 索引与实际 pool 不同步（ca-certificates 404）
 PBS_OFFICIAL="https://github.com/astral-sh/python-build-standalone/releases/download"
 PBS_MIRROR="https://registry.npmmirror.com/-/binary/python-build-standalone"
 
