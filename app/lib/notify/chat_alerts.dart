@@ -126,6 +126,9 @@ const turnKey = 'turn';
 /// Shown when a conversation has no title yet (same as the sessions drawer).
 String get untitledSession => appL10n.commonUntitledChat;
 
+/// 灵动岛/通知卡片只放得下几个字：会话标题会带时间等后缀，切到前 3 个字。
+String islandTitle(String text) => String.fromCharCodes(text.runes.take(3));
+
 String alertTitle(String? title) {
   final t = title == null ? null : _masked(title).trim();
   // A generation request's header stays out, as in the drawer.
@@ -642,7 +645,7 @@ class HostAlertTracker {
         sessionId: root,
         kind: kind,
         key: eventId,
-        title: alertTitle(_sessions[root]?.title),
+        title: islandTitle(alertTitle(_sessions[root]?.title)),
         text: preview?.text ?? text,
         fullText: preview?.fullText,
         canApprove: preview != null,
