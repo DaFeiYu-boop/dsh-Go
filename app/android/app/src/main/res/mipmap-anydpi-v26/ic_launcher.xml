@@ -2,7 +2,7 @@
 <!-- Adaptive launcher icon (API 26+): blue gradient background, raster glyph foreground
      (mipmap-*/ic_launcher_foreground.png), vector silhouette for themed icons. -->
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@drawable/ic_launcher_background" />
+    <background android:drawable="@drawable/ic_launcher_ink_background" />
     <foreground android:drawable="@mipmap/ic_launcher_foreground" />
     <monochrome android:drawable="@drawable/ic_launcher_monochrome" />
 </adaptive-icon>
