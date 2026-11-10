@@ -976,8 +976,13 @@ def cmd_assemble(args):
 
     runtime_info = json.loads(args.runtime_info)
     def digest(path):
+        # 注意：GitHub Actions 的 ubuntu-22.04 runner 自带 Python 3.10，
+        # hashlib.file_digest 是 3.11+ 才有，这里用分块读取兼容老版本。
+        h = hashlib.sha256()
         with open(path, "rb") as source:
-            return hashlib.file_digest(source, "sha256").hexdigest()
+            for chunk in iter(lambda: source.read(1 << 20), b""):
+                h.update(chunk)
+        return h.hexdigest()
     upgrade = upgrade_descriptor(abi, runtime_info["ubuntuVersion"], digest(args.base),
                                  [digest(p) for p in args.deb or []],
                                  digest(args.python) if args.python else None)
