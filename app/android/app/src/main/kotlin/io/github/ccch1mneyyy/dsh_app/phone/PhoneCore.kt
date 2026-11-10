@@ -391,6 +391,7 @@ class PhoneCore(
                 PhoneToolCatalog.TAP, PhoneToolCatalog.TYPE, PhoneToolCatalog.SCROLL, PhoneToolCatalog.TAP_XY -> act(name, a, scope, owner)
                 PhoneToolCatalog.KEY -> key(a, owner)
                 PhoneToolCatalog.HANDOFF -> handoff(a, scope, owner)
+                PhoneToolCatalog.SHELL -> shell(a)
                 // l10n:keep agent tool result
                 else -> Out("没有这个手机工具：$name", error = true)
             }
@@ -401,22 +402,6 @@ class PhoneCore(
 
     private fun current(owner: PhoneTasks.Owner): Boolean =
         tasks.isCurrent(owner) && !Thread.currentThread().isInterrupted
-        return when (name) {
-            PhoneToolCatalog.APPS -> apps(a)
-            PhoneToolCatalog.OPEN -> open(a, scope)
-            PhoneToolCatalog.INTENT -> intent(a)
-            PhoneToolCatalog.NOTIFY -> notify(a)
-            PhoneToolCatalog.CLIPBOARD -> clipboard(a)
-            PhoneToolCatalog.SCREEN -> screen(a)
-            PhoneToolCatalog.COLLECT -> collect(a)
-            PhoneToolCatalog.TAP, PhoneToolCatalog.TYPE, PhoneToolCatalog.SCROLL, PhoneToolCatalog.TAP_XY -> act(name, a, scope)
-            PhoneToolCatalog.KEY -> key(a)
-            PhoneToolCatalog.HANDOFF -> handoff(a, scope)
-            PhoneToolCatalog.SHELL -> shell(a)
-            // l10n:keep agent tool result
-            else -> Out("没有这个手机工具：$name", error = true)
-        }
-    }
 
     // ── Terminal ────────────────────────────────────────────────────────────────────
 
