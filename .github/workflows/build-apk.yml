@@ -12,6 +12,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Customization guard
+        run: |
+          fail=0
+          while IFS='|' read -r path pat desc; do
+            case "$path" in ''|\#*) continue;; esac
+            if grep -qF -- "$pat" "$path" 2>/dev/null; then
+              echo "OK   $desc"
+            else
+              echo "::error::定制丢失：$desc ($path 里找不到 '$pat')"
+              fail=$((fail+1))
+            fi
+          done < scripts/custom-inventory.txt
+          [ "$fail" -eq 0 ] || { echo "共 $fail 项定制缺失，拒绝编译"; exit 1; }
+
       - name: Apply shell tool patch (optional)
         run: |
           if [ -f 0001-add-shell-tool.patch ] && git apply --check 0001-add-shell-tool.patch 2>/dev/null; then

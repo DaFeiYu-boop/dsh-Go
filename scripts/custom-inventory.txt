@@ -1,0 +1,18 @@
+# 定制守护清单：path|必须存在的字符串|说明
+# 编译前逐项检查，缺一个就失败——防止合并上游时又把定制丢了
+app/lib/ui/chat/dock/root_pill.dart|class RootPill|底部胶囊「完全权限/终端」按钮
+app/lib/ui/phone/shell_permissions_page.dart|ShellPermissionsPage|终端权限设置页
+app/lib/phone/phone_channel.dart|class PhoneShellStatus|终端状态数据模型
+app/lib/phone/phone_channel.dart|setShellMode|通道：切档位
+app/lib/phone/phone_channel.dart|setAllowedCommands|通道：命令白名单
+app/lib/phone/phone_channel.dart|setSdcardAllowed|通道：存储开关
+app/lib/state/phone_state.dart|setShellMode|状态：切档位
+app/lib/ui/chat/chat_screen.dart|RootPill|对话页挂胶囊
+app/lib/ui/settings/settings_screen.dart|终端权限|设置里的入口
+app/lib/ui/plugins/native/composer_strip.dart|RepaintBoundary|去闪：隔离重绘
+app/lib/ui/plugins/native/composer_strip.dart|blur: false|去闪：关玻璃模糊
+app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneCore.kt|shell(a)|终端工具实现
+app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhoneControl.kt|K_SHELL_MODE|档位持久化
+app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/PhonePlugin.kt|setShellMode|原生通道
+app/android/app/src/main/kotlin/io/github/ccch1mneyyy/dsh_app/phone/ShellGuard.kt|ShellCommands|命令目录与守卫
+app/android/app/src/main/AndroidManifest.xml|ic_launcher_ink|墨黑图标
