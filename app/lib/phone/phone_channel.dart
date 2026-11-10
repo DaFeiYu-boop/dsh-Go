@@ -1506,6 +1506,16 @@ class PhoneChannel {
     'unlocks': {unlock.name: on},
   });
 
+  /// 切终端权限档位：original / safe / full（`PhoneShellStatus.mode`）。
+  Future<bool> setShellMode(String mode) => _bool('setShellMode', {'mode': mode});
+
+  /// 高危档位允许的命令白名单；传空集合表示只放行默认项。
+  Future<bool> setAllowedCommands(List<String> commands) =>
+      _bool('setAllowedCommands', {'commands': commands});
+
+  /// 高危档位是否额外允许访问手机存储（/sdcard）。
+  Future<bool> setSdcardAllowed(bool on) => _bool('setSdcardAllowed', {'on': on});
+
   Future<List<PhoneLogEntry>> actionLog({int limit = 100}) async {
     try {
       final list = await _methods.invokeListMethod<Object?>('actionLog', {'limit': limit});
