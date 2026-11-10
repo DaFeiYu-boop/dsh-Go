@@ -87,10 +87,18 @@ class ComposerStrip extends StatelessWidget {
       button: onTap != null,
       label: '$title $text',
       excludeSemantics: true,
-      child: GlassSurface(
-        tier: GlassTier.chrome,
-        stadium: true,
-        onTap: onTap,
+      // 插件每次推新数据都会重建这一行；没有 RepaintBoundary 时，毛玻璃
+      // 会跟着重画一次背景模糊，那一帧没合成完就露出黑的底（看着像闪一下）。
+      // 隔一层之后只重绘文字，玻璃自己不动。
+      child: RepaintBoundary(
+        child: GlassSurface(
+          tier: GlassTier.chrome,
+          stadium: true,
+          // 这一条每几秒刷新一次文字；开模糊时每次刷新都要重新采样背景，
+          // 那一帧会露出下面的黑底（用户实测闪黑边）。关掉模糊改走
+          // GlassSurface 自带的近乎不透明填充：配色不变，刷新不再重采样。
+          blur: false,
+          onTap: onTap,
         child: SizedBox(
           height: StripMetrics.height,
           child: Padding(
@@ -125,6 +133,7 @@ class ComposerStrip extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
