@@ -256,6 +256,22 @@ class PhonePlugin : FlutterPlugin, ActivityAware, MethodChannel.MethodCallHandle
                 }
             }
             "openAccessibilitySettings" -> result.success(startActivity(control.accessibilitySettingsIntent()))
+            "setShellMode" -> {
+                val mode = ShellMode.of(call.argument<String>("mode"))
+                control.setShellMode(mode)
+                result.success(linkedMapOf("ok" to true, "mode" to mode.key))
+            }
+            "setAllowedCommands" -> {
+                val list = call.argument<List<String>>("commands").orEmpty()
+                    .filter { name -> ShellCommands.CATALOG.any { it["name"] == name } }
+                    .toSet()
+                control.setAllowedCommands(list)
+                result.success(linkedMapOf("ok" to true, "count" to list.size))
+            }
+            "setSdcardAllowed" -> {
+                control.setSdcardAllowed(call.argument<Boolean>("on") ?: false)
+                result.success(mapOf("ok" to true))
+            }
             "openAppDetails" -> result.success(startActivity(control.appDetailsIntent()))
             "testScreen" -> async(result) { control.testScreen() }
             "setBackgroundMode" -> {

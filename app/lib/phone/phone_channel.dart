@@ -647,6 +647,7 @@ class PhoneStatus {
     this.device = const PhoneDevice(),
     this.skills = const PhoneSkillStatus(),
     this.taskInterruption = const PhoneTaskInterruption(),
+    this.shell = const PhoneShellStatus(),
   });
 
   /// The native module isn't there (or failed to answer): "未就绪".
@@ -669,7 +670,8 @@ class PhoneStatus {
       parallelLimit = 1,
       device = const PhoneDevice(),
       skills = const PhoneSkillStatus(),
-      taskInterruption = const PhoneTaskInterruption();
+      taskInterruption = const PhoneTaskInterruption(),
+      shell = const PhoneShellStatus();
 
   factory PhoneStatus.fromMap(Map<Object?, Object?> m) => PhoneStatus(
     statusRevision: m['statusRevision'] is int && (m['statusRevision'] as int) > 0
@@ -691,6 +693,7 @@ class PhoneStatus {
     device: PhoneDevice.fromMap(_map(m['device'])),
     skills: PhoneSkillStatus.parse(m['skills']),
     taskInterruption: PhoneTaskInterruption.parse(m['taskInterruption']),
+    shell: PhoneShellStatus.fromMap(_map(m['shell'])),
   );
 
   /// Whether native status is currently available. On transport failure the
@@ -727,11 +730,14 @@ class PhoneStatus {
   final PhoneSkillStatus skills;
   final PhoneTaskInterruption taskInterruption;
 
+  /// 终端权限：档位、允许的命令、脚本确认状态。
+  final PhoneShellStatus shell;
+
   /// Some task may still act, the selected one or any other conversation's: active, a call
   /// waiting to start, or one still draining. Mirrors the native refusal of 解除限制.
   bool get anyTaskBusy => task.active || tasks.any((t) => t.active || t.pendingCalls > 0 || t.draining);
 
-  PhoneStatus copyWith({bool? enabled, bool? ready, Object? error = _keepError}) => PhoneStatus(
+  PhoneStatus copyWith({bool? enabled, bool? ready, Object? error = _keepError, PhoneShellStatus? shell, }) => PhoneStatus(
     ready: ready ?? this.ready,
     error: identical(error, _keepError) ? this.error : error as String?,
     statusRevision: statusRevision,
@@ -750,6 +756,7 @@ class PhoneStatus {
     tasks: tasks,
     parallelLimit: parallelLimit,
     device: device,
+    shell: shell ?? this.shell,
     skills: skills,
     taskInterruption: taskInterruption,
   );
@@ -1641,4 +1648,59 @@ class PhoneChannel {
       return PhoneResult(false, e.message ?? e.code);
     }
   }
+}
+
+/// 终端权限（原版 / 安全 / 高危）的快照。
+class PhoneShellStatus {
+  const PhoneShellStatus({
+    this.mode = 'original',
+    this.allowed = const <String>[],
+    this.sdcardAllowed = false,
+    this.commands = const <PhoneShellCommand>[],
+  });
+
+  factory PhoneShellStatus.fromMap(Map<Object?, Object?> m) => PhoneShellStatus(
+    mode: (m['mode'] as String?) ?? 'original',
+    allowed:
+        (m['allowed'] as List?)?.whereType<String>().toList(growable: false) ??
+        const <String>[],
+    sdcardAllowed: m['sdcardAllowed'] == true,
+    commands:
+        (m['commands'] as List?)
+            ?.whereType<Map>()
+            .map((e) => PhoneShellCommand.fromMap(e))
+            .toList(growable: false) ??
+        const <PhoneShellCommand>[],
+  );
+
+  /// original / safe / full。
+  final String mode;
+
+  /// 安全模式下用户勾选的命令名。
+  final List<String> allowed;
+  final bool sdcardAllowed;
+  final List<PhoneShellCommand> commands;
+
+  bool get isOriginal => mode == 'original';
+  bool get isFull => mode == 'full';
+  bool isAllowed(String name) => allowed.contains(name);
+}
+
+/// 命令清单里的一条：名字 + 分组。
+class PhoneShellCommand {
+  const PhoneShellCommand(this.name, this.group, {this.desc = ''});
+
+  factory PhoneShellCommand.fromMap(Map m) => PhoneShellCommand(
+    (m['name'] as String?) ?? '',
+    (m['group'] as String?) ?? '',
+    desc: (m['desc'] as String?) ?? '',
+  );
+
+  final String name;
+
+  /// read / file / system / network / packages / script。
+  final String group;
+
+  /// 一句话说明这个命令干什么，设置页显示。
+  final String desc;
 }

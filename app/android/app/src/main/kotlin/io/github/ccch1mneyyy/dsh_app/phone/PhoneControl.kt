@@ -828,6 +828,12 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
             "background" to backgroundStatus(),
             "a11yKeeper" to keeperStatus(),
             "task" to tasks.snapshot().toMap(),
+            "shell" to linkedMapOf(
+                "mode" to shellMode().key,
+                "allowed" to allowedCommands().sorted(),
+                "sdcardAllowed" to sdcardAllowed(),
+                "commands" to ShellCommands.CATALOG,
+            ),
             "taskInterruption" to taskJournal.status(),
             "taskProtocol" to 1,
             "callerCapability" to sessions.callerCapability(),
@@ -973,6 +979,34 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
 
     override fun enabled(): Boolean = isEnabled()
 
+    override fun shellMode(): ShellMode = ShellMode.of(prefs.getString(K_SHELL_MODE, null))
+
+    override fun allowedCommands(): Set<String> {
+        val safe = shellMode() == ShellMode.SAFE
+        val key = if (safe) K_SAFE_CMDS else K_FULL_CMDS
+        val def = if (safe) ShellCommands.SAFE_DEFAULT else ShellCommands.DEFAULT_ALLOWED
+        return prefs.getStringSet(key, null) ?: def
+    }
+
+
+    override fun cacheDir(): File? = app.cacheDir
+
+    override fun sdcardAllowed(): Boolean =
+        shellMode() == ShellMode.FULL || prefs.getBoolean(K_SDCARD, false)
+
+    fun setSdcardAllowed(on: Boolean) {
+        prefs.edit().putBoolean(K_SDCARD, on).apply()
+    }
+
+    fun setShellMode(mode: ShellMode) {
+        prefs.edit().putString(K_SHELL_MODE, mode.key).apply()
+    }
+
+    fun setAllowedCommands(cmds: Set<String>) {
+        val key = if (shellMode() == ShellMode.SAFE) K_SAFE_CMDS else K_FULL_CMDS
+        prefs.edit().putStringSet(key, cmds).apply()
+    }
+
     override fun isLocked(): Boolean {
         val km = app.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
         val power = app.getSystemService(Context.POWER_SERVICE) as PowerManager
@@ -1055,6 +1089,12 @@ class PhoneControl private constructor(private val app: Context) : PhoneEnv, Con
 
         /** Only master preference publication and the keeper's final settings writes share this lock. */
         internal val keeperSwitchLock = Any()
+
+        private const val K_SHELL_MODE = "shell_mode"
+        private const val K_ALLOWED_CMDS = "shell_allowed"
+    private const val K_SAFE_CMDS = "shell_safe_allowed"
+    private const val K_FULL_CMDS = "shell_full_allowed"
+    private const val K_SDCARD = "shell_sdcard_allowed"
         private const val K_POLICIES = "policies"
         private const val K_TCP_FALLBACK = "tcpFallback"
         private const val CHANNEL_FIX = "dsh-phone-fix"
