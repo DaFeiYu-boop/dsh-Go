@@ -58,6 +58,8 @@ jobs:
         run: bash runtime/build-runtime.sh arm64-v8a
 
       - name: Build APK
+        env:
+          DSH_MAVEN_MIRRORS: "0"
         run: DSH_BETA_TOKEN_FILE= bash tooling/build-apk.sh -f arm64
 
       - name: APK size sentinel
