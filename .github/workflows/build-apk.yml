@@ -12,6 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Customization guard
+        run: |
+          missing=0
+          while IFS='|' read -r file needle note; do
+            case "$file" in ''|'#'*) continue ;; esac
+            if ! grep -qF -- "$needle" "$file"; then
+              echo "::error::定制丢失：${note}（在 ${file} 里找不到「${needle}」）"
+              missing=1
+            fi
+          done < scripts/custom-inventory.txt
+          if [ "$missing" -ne 0 ]; then
+            echo "::error::有定制项缺失，已阻止编译。请确认基线是最新的定制分支，而不是官方 tag。"
+            exit 1
+          fi
+          echo "定制项全部在位（$(grep -vc '^#' scripts/custom-inventory.txt) 项）"
+
       - name: Apply shell tool patch (optional)
         run: |
           if [ -f 0001-add-shell-tool.patch ] && git apply --check 0001-add-shell-tool.patch 2>/dev/null; then
@@ -43,6 +59,20 @@ jobs:
 
       - name: Build APK
         run: DSH_BETA_TOKEN_FILE= bash tooling/build-apk.sh -f arm64
+
+      - name: APK size sentinel
+        run: |
+          apk=$(ls app/build/app/outputs/flutter-apk/*.apk | head -1)
+          now=$(stat -c%s "$apk"); base=$(cat scripts/apk-baseline.txt 2>/dev/null || echo 0)
+          echo "本次 ${now} 字节，基线 ${base} 字节"
+          if [ "$base" -gt 0 ] && [ "$now" -lt "$base" ]; then
+            pct=$(( (base - now) * 100 / base ))
+            if [ "$pct" -ge 2 ]; then
+              echo "::warning::APK 比基线小了 ${pct}%，可能丢了定制（基线 ${base} → 本次 ${now}）"
+            fi
+          elif [ "$now" -gt "$base" ]; then
+            echo "::notice::APK 比基线大了 $(( (now - base) * 100 / base ))%（功能增加属正常）"
+          fi
 
       - name: Show artifacts
         run: find app/build/app/outputs -name '*.apk' -exec ls -lh {} \;
