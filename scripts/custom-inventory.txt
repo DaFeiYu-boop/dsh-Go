@@ -16,4 +16,4 @@ app/lib/ui/chat/chat_screen.dart|RootPill|胶囊入口
 app/lib/ui/settings/settings_screen.dart|终端权限|设置里的入口
 app/lib/ui/plugins/native/composer_strip.dart|RepaintBoundary|胶囊条去闪
 app/lib/ui/plugins/native/composer_strip.dart|blur: false|胶囊条关模糊
-app/lib/ui/plugins/plugin_translate.dart|plugin_translate|插件说明中文化
+app/lib/ui/plugins/plugin_translate.dart|class PluginTranslator|插件说明中文化
